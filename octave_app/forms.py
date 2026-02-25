@@ -36,6 +36,16 @@ class RegisterForm(UserCreationForm):
         self.fields['password1'].help_text = None
         self.fields['password2'].help_text = None
 
+    def clean_password1(self):
+        password = self.cleaned_data.get("password1")
+        if password:
+            if not any(x.isupper() for x in password):
+                raise forms.ValidationError("Password must contain at least one uppercase letter.")
+            import re
+            if not re.search(r"[@%$@!#%^&*()_+={}\[\]:;\"'<>,.?/|\\~`-]", password):
+                raise forms.ValidationError("Password must contain at least one special character.")
+        return password
+
 
 class LoginForm(AuthenticationForm):
     def __init__(self, *args, **kwargs):
