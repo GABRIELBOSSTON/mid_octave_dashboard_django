@@ -8,7 +8,9 @@ from functools import wraps
 
 from .models import (Assessment, ImpactCriteria, ImpactPriority,
                      InformationAsset, AssetContainer, ThreatScenario,
-                     IMPACT_AREA_CHOICES, UserProfile)
+                     IMPACT_AREA_CHOICES, UserProfile,
+                     AuditAssessment, AuditControl, AuditEvidence,
+                     ISO27001_CONTROLS)
 from .forms  import (AssessmentForm, ImpactCriteriaForm, ImpactPriorityForm,
                      InformationAssetForm, AssetContainerForm, ThreatScenarioForm,
                      RegisterForm, LoginForm, UserProfileForm, AssignAuditeeForm)
@@ -59,6 +61,12 @@ def login_view(request):
         user = form.get_user()
         login(request, user)
         messages.success(request, f'Welcome back, {user.first_name or user.username}!')
+        # Auditor goes to module selection
+        try:
+            if user.profile.role == 'auditor':
+                return redirect('module_selection')
+        except Exception:
+            pass
         return redirect('dashboard')
     return render(request, 'octave_app/auth/login.html', {'form': form})
 
@@ -81,8 +89,7 @@ def register_view(request):
             'phone': form.cleaned_data.get('phone') or '',
             }
         )
-        # login(request, user)  # Removed as per request to redirect to login instead
-        messages.success(request, f'Account created successfully! Welcome, {user.first_name}. Please log in to continue.')
+        messages.success(request, f'Account created! Welcome, {user.first_name}. Please sign in to continue. Your account is pending role assignment by an Admin.')
         return redirect('login')
     return render(request, 'octave_app/auth/register.html', {'form': form})
 
@@ -221,6 +228,13 @@ def dashboard(request):
         auditee_count = UP.objects.filter(role='auditee').count()
         total_users   = User.objects.count()
 
+    # Audit assessment data for admin
+    all_audits = AuditAssessment.objects.none()
+    total_audits = 0
+    if role == 'admin':
+        all_audits = AuditAssessment.objects.select_related('owner').all()
+        total_audits = all_audits.count()
+
     context = {
         'assessments':       assessments,
         'total_assessments': assessments.count(),
@@ -234,6 +248,9 @@ def dashboard(request):
         'admin_count':       admin_count,
         'auditor_count':     auditor_count,
         'auditee_count':     auditee_count,
+        # audit extras
+        'all_audits':        all_audits[:5],
+        'total_audits':      total_audits,
     }
     return render(request, 'octave_app/dashboard.html', context)
 
@@ -720,3 +737,306 @@ def generate_report(request, pk):
     }
     return render(request, 'octave_app/report.html', context)
 
+
+
+@login_required
+@admin_required
+def audit_assign_auditee(request, pk):
+    """Admin-only: assign an auditee to an audit assessment."""
+    from .forms import AssignAuditeeAuditForm
+    audit = get_object_or_404(AuditAssessment, pk=pk)
+    form  = AssignAuditeeAuditForm(request.POST or None, instance=audit)
+    if form.is_valid():
+        form.save()
+        auditee = form.cleaned_data['assigned_auditee']
+        if auditee:
+            messages.success(request, f'Audit assigned to {auditee.get_full_name() or auditee.username}.')
+        else:
+            messages.success(request, 'Auditee assignment removed.')
+        return redirect('audit_detail', pk=pk)
+    return render(request, 'octave_app/audit/audit_assign_auditee.html', {
+        'form': form, 'audit': audit,
+    })
+
+
+@login_required
+def audit_dashboard(request):
+    user = request.user
+    try:
+        role = user.profile.role
+    except Exception:
+        role = 'auditee'
+
+    if role == 'auditor':
+        audits = AuditAssessment.objects.filter(owner=user)
+    elif role == 'admin':
+        audits = AuditAssessment.objects.all()
+    else:
+        audits = AuditAssessment.objects.filter(assigned_auditee=user)
+
+    total_audits = audits.count()
+
+    # Compliance breakdown across all audits
+    compliant_count     = 0
+    non_compliant_count = 0
+    partial_count       = 0
+    not_reviewed_count  = 0
+    for audit in audits:
+        controls = audit.controls.all()
+        compliant_count     += controls.filter(status='compliant').count()
+        non_compliant_count += controls.filter(status='non_compliant').count()
+        partial_count       += controls.filter(status='partial').count()
+        not_reviewed_count  += controls.filter(status='not_reviewed').count()
+
+    # Average compliance score
+    scores = [audit.get_compliance_score()[0] for audit in audits]
+    avg_score = int(sum(scores) / len(scores)) if scores else 0
+
+    context = {
+        'audits':               audits[:5],
+        'total_audits':         total_audits,
+        'compliant_count':      compliant_count,
+        'non_compliant_count':  non_compliant_count,
+        'partial_count':        partial_count,
+        'not_reviewed_count':   not_reviewed_count,
+        'avg_score':            avg_score,
+        'user_role':            role,
+    }
+    return render(request, 'octave_app/audit/audit_dashboard.html', context)
+
+
+# ────────────────────────────────────────────────────────────
+# MODULE SELECTION — Auditor picks Risk or Audit Assessment
+# ────────────────────────────────────────────────────────────
+
+@login_required
+def module_selection(request):
+    """Landing page for auditors to choose Risk or Audit Assessment."""
+    try:
+        role = request.user.profile.role
+    except Exception:
+        role = 'auditee'
+    if role != 'auditor':
+        return redirect('dashboard')
+    risk_count  = Assessment.objects.filter(owner=request.user).count()
+    audit_count = AuditAssessment.objects.filter(owner=request.user).count()
+    return render(request, 'octave_app/module_selection.html', {
+        'risk_count': risk_count,
+        'audit_count': audit_count,
+    })
+
+
+# ────────────────────────────────────────────────────────────
+# MODULE 6 — AUDIT CHECKLIST (ISO 27001)
+# ────────────────────────────────────────────────────────────
+
+@login_required
+@auditor_required
+def audit_assessment_create(request):
+    from .forms import AuditAssessmentForm
+    form = AuditAssessmentForm(request.POST or None)
+    if form.is_valid():
+        audit = form.save(commit=False)
+        audit.owner = request.user
+        audit.save()
+        # Auto-create all ISO 27001 controls
+        for ctrl_id, ctrl_name, iso_ref, desc in ISO27001_CONTROLS:
+            AuditControl.objects.create(
+                audit=audit,
+                control_id=ctrl_id,
+                control_name=ctrl_name,
+                iso_reference=iso_ref,
+                description=desc,
+            )
+        messages.success(request, f'Audit Assessment "{audit.title}" created with ISO 27001 checklist.')
+        return redirect('audit_detail', pk=audit.pk)
+    return render(request, 'octave_app/audit/audit_form.html', {
+        'form': form, 'page_title': 'New Audit Assessment', 'btn': 'Create',
+    })
+
+
+@login_required
+def audit_list(request):
+    user = request.user
+    try:
+        role = user.profile.role
+    except Exception:
+        role = 'auditee'
+    if role == 'admin':
+        audits = AuditAssessment.objects.select_related('owner', 'assigned_auditee').all()
+    elif role == 'auditor':
+        audits = AuditAssessment.objects.filter(owner=user)
+    else:
+        audits = AuditAssessment.objects.filter(assigned_auditee=user)
+    return render(request, 'octave_app/audit/audit_list.html', {'audits': audits})
+
+
+@login_required
+def audit_detail(request, pk):
+    audit    = get_object_or_404(AuditAssessment, pk=pk)
+    controls = audit.controls.prefetch_related('evidences').all()
+    score, label, color = audit.get_compliance_score()
+    opinion, op_color, op_icon = audit.get_final_opinion()
+
+    # Build findings for non-compliant/partial
+    findings = []
+    for ctrl in controls:
+        if ctrl.status in ('non_compliant', 'partial'):
+            findings.append(ctrl)
+
+    # Status breakdown
+    compliant_count     = controls.filter(status='compliant').count()
+    non_compliant_count = controls.filter(status='non_compliant').count()
+    partial_count       = controls.filter(status='partial').count()
+    not_reviewed_count  = controls.filter(status='not_reviewed').count()
+
+    return render(request, 'octave_app/audit/audit_detail.html', {
+        'audit':               audit,
+        'controls':            controls,
+        'compliance_score':    score,
+        'compliance_label':    label,
+        'compliance_color':    color,
+        'opinion':             opinion,
+        'opinion_color':       op_color,
+        'opinion_icon':        op_icon,
+        'findings':            findings,
+        'compliant_count':     compliant_count,
+        'non_compliant_count': non_compliant_count,
+        'partial_count':       partial_count,
+        'not_reviewed_count':  not_reviewed_count,
+        'total_controls':      controls.count(),
+    })
+
+
+@login_required
+@auditor_required
+def audit_update(request, pk):
+    from .forms import AuditAssessmentForm
+    audit = get_object_or_404(AuditAssessment, pk=pk, owner=request.user)
+    form  = AuditAssessmentForm(request.POST or None, instance=audit)
+    if form.is_valid():
+        form.save()
+        messages.success(request, 'Audit Assessment updated.')
+        return redirect('audit_detail', pk=pk)
+    return render(request, 'octave_app/audit/audit_form.html', {
+        'form': form, 'page_title': 'Edit Audit Assessment', 'btn': 'Save', 'audit': audit,
+    })
+
+
+@login_required
+@auditor_required
+def audit_delete(request, pk):
+    audit = get_object_or_404(AuditAssessment, pk=pk)
+    if request.method == 'POST':
+        audit.delete()
+        messages.success(request, 'Audit Assessment deleted.')
+        return redirect('audit_list')
+    return render(request, 'octave_app/confirm_delete.html', {'object': audit, 'type': 'Audit Assessment'})
+
+
+# ────────────────────────────────────────────────────────────
+# MODULE 7 — CONTROL REVIEW + EVIDENCE UPLOAD
+# ────────────────────────────────────────────────────────────
+
+@login_required
+@auditor_required
+def audit_control_review(request, control_pk):
+    from .forms import AuditControlForm
+    ctrl  = get_object_or_404(AuditControl, pk=control_pk)
+    form  = AuditControlForm(request.POST or None, instance=ctrl)
+    if form.is_valid():
+        form.save()
+        messages.success(request, f'Control "{ctrl.control_name}" updated.')
+        return redirect('audit_detail', pk=ctrl.audit.pk)
+    evidences = ctrl.evidences.all()
+    return render(request, 'octave_app/audit/control_review.html', {
+        'ctrl': ctrl, 'form': form, 'evidences': evidences,
+    })
+
+
+@login_required
+@auditor_required
+def audit_evidence_upload(request, control_pk):
+    from .forms import AuditEvidenceForm
+    ctrl = get_object_or_404(AuditControl, pk=control_pk)
+    form = AuditEvidenceForm(request.POST or None, request.FILES or None)
+    if form.is_valid():
+        ev = form.save(commit=False)
+        ev.control     = ctrl
+        ev.uploaded_by = request.user
+        ev.save()
+        messages.success(request, f'Evidence "{ev.title}" uploaded.')
+        return redirect('audit_control_review', control_pk=control_pk)
+    return render(request, 'octave_app/audit/evidence_upload.html', {
+        'form': form, 'ctrl': ctrl,
+    })
+
+
+@login_required
+@auditor_required
+def audit_evidence_delete(request, evidence_pk):
+    ev = get_object_or_404(AuditEvidence, pk=evidence_pk)
+    ctrl_pk = ev.control.pk
+    if request.method == 'POST':
+        ev.file.delete(save=False)
+        ev.delete()
+        messages.success(request, 'Evidence deleted.')
+        return redirect('audit_control_review', control_pk=ctrl_pk)
+    return render(request, 'octave_app/confirm_delete.html', {'object': ev, 'type': 'Evidence'})
+
+
+# ────────────────────────────────────────────────────────────
+# AUDIT REPORT
+# ────────────────────────────────────────────────────────────
+
+@login_required
+def audit_report(request, pk):
+    audit    = get_object_or_404(AuditAssessment, pk=pk)
+    controls = audit.controls.prefetch_related('evidences').all()
+    score, label, color = audit.get_compliance_score()
+    opinion, op_color, op_icon = audit.get_final_opinion()
+
+    findings = []
+    for ctrl in controls:
+        if ctrl.status in ('non_compliant', 'partial'):
+            auto_rec = ctrl.recommendation or f'Review and remediate: {ctrl.control_name}. Ensure compliance with ISO 27001 {ctrl.iso_reference}.'
+            findings.append({
+                'control':     ctrl,
+                'issue':       f'{ctrl.control_name} — {"Not implemented" if ctrl.status == "non_compliant" else "Partially implemented"}',
+                'risk':        ctrl.auditor_notes or f'Failure to comply with {ctrl.control_name} may expose the organization to security incidents.',
+                'asset':       ctrl.affected_asset or 'Organization-wide',
+                'recommendation': auto_rec,
+                'risk_level':  ctrl.risk_level,
+            })
+
+    ai_recommendations = []
+    if controls.filter(status='non_compliant').count() > 0:
+        ai_recommendations.append('Immediately address all Non-Compliant controls. Assign responsible owners and set deadlines within 30 days.')
+    if controls.filter(status='partial').count() > 0:
+        ai_recommendations.append('Complete partially implemented controls within 60–90 days. Prioritize high-risk items first.')
+    if score < 60:
+        ai_recommendations.append('Compliance is critical. Conduct an urgent remediation workshop and consider external ISO 27001 consulting.')
+    if not ai_recommendations:
+        ai_recommendations.append('Compliance posture is strong. Maintain current controls and schedule re-audit in 12 months.')
+
+    compliant_count     = controls.filter(status='compliant').count()
+    non_compliant_count = controls.filter(status='non_compliant').count()
+    partial_count       = controls.filter(status='partial').count()
+
+    return render(request, 'octave_app/audit/audit_report.html', {
+        'audit':               audit,
+        'controls':            controls,
+        'compliance_score':    score,
+        'compliance_label':    label,
+        'compliance_color':    color,
+        'opinion':             opinion,
+        'opinion_color':       op_color,
+        'opinion_icon':        op_icon,
+        'findings':            findings,
+        'ai_recommendations':  ai_recommendations,
+        'compliant_count':     compliant_count,
+        'non_compliant_count': non_compliant_count,
+        'partial_count':       partial_count,
+        'total_controls':      controls.count(),
+        'report_date':         timezone.now(),
+    })

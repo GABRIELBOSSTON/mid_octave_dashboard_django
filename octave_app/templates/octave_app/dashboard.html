@@ -30,14 +30,12 @@
 <div class="row g-3 mb-4">
   <div class="col-sm-6 col-xl-3">
     <div class="stat-card" style="background:linear-gradient(135deg,#0d1f3c,#1d4ed8)">
-      <div class="lbl"><i class="bi bi-folder2 me-1"></i>Total Assessments</div>
-      <div class="val">{{ total_assessments }}</div>
+      <div class="lbl"><i class="bi bi-shield-exclamation me-1"></i>Risk Assessments</div>
     </div>
   </div>
   <div class="col-sm-6 col-xl-3">
-    <div class="stat-card" style="background:linear-gradient(135deg,#065f46,#059669)">
-      <div class="lbl"><i class="bi bi-database me-1"></i>Total Assets</div>
-      <div class="val">{{ total_assets }}</div>
+    <div class="stat-card" style="background:linear-gradient(135deg,#064e3b,#059669)">
+      <div class="lbl"><i class="bi bi-clipboard2-check me-1"></i>Audit Assessments</div>
     </div>
   </div>
   <div class="col-sm-6 col-xl-3">
@@ -56,9 +54,10 @@
 
 <div class="row g-4">
   <div class="col-lg-8">
-    <div class="card">
+    <!-- Risk Assessments -->
+    <div class="card mb-4">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <h6 class="fw-bold mb-0"><i class="bi bi-folder2-open me-2"></i>All Platform Assessments</h6>
+        <h6 class="fw-bold mb-0"><i class="bi bi-shield-exclamation me-2 text-primary"></i>Risk Assessments (OCTAVE Allegro)</h6>
         <a href="{% url 'assessment_list' %}" class="btn btn-sm btn-outline-secondary">View All</a>
       </div>
       <div class="card-body p-0">
@@ -87,10 +86,59 @@
           </table>
         </div>
         {% else %}
-        <div class="text-center py-5 text-muted"><i class="bi bi-folder-x d-block fs-1 mb-2"></i>No assessments yet.</div>
+        <div class="text-center py-5 text-muted"><i class="bi bi-folder-x d-block fs-1 mb-2"></i>No risk assessments yet.</div>
         {% endif %}
       </div>
     </div>
+
+    <!-- Audit Assessments (ISO 27001) -->
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+          <h6 class="fw-bold mb-0"><i class="bi bi-clipboard2-check me-2 text-success"></i>Audit Assessments (ISO 27001)</h6>
+        </div>
+        <a href="{% url 'audit_list' %}" class="btn btn-sm btn-outline-success">View All</a>
+      </div>
+      <div class="card-body p-0">
+        {% if all_audits %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr><th class="ps-3">Title</th><th>Auditor</th><th>Auditee</th><th>Status</th><th>Compliance</th><th>Controls</th><th></th></tr>
+            </thead>
+            <tbody>
+            {% for audit in all_audits %}
+            {% with sc=audit.get_compliance_score %}
+            <tr>
+              <td class="ps-3 fw-semibold small">{{ audit.title }}</td>
+              <td class="small text-muted">{{ audit.owner.get_full_name|default:audit.owner.username|default:"—" }}</td>
+              <td class="small text-muted">{{ audit.assigned_auditee.get_full_name|default:"—" }}</td>
+              <td>
+                {% if audit.status == 'completed' %}<span class="badge bg-success">Completed</span>
+                {% elif audit.status == 'in_progress' %}<span class="badge bg-warning text-dark">In Progress</span>
+                {% else %}<span class="badge bg-secondary">Draft</span>{% endif %}
+              </td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress" style="width:50px;height:6px;"><div class="progress-bar bg-{{ sc.2 }}" style="width:{{ sc.0 }}%"></div></div>
+                  <span class="small fw-bold">{{ sc.0 }}%</span>
+                </div>
+                <div style="font-size:.68rem;color:#64748b;">{{ sc.1 }}</div>
+              </td>
+              <td><span class="badge bg-light text-dark">{{ audit.controls.count }}</span></td>
+              <td><a href="{% url 'audit_detail' audit.pk %}" class="btn btn-sm btn-outline-success">Open</a></td>
+            </tr>
+            {% endwith %}
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted"><i class="bi bi-clipboard2-x d-block fs-1 mb-2"></i>No audit assessments yet.</div>
+        {% endif %}
+      </div>
+    </div>
+
   </div>
   <div class="col-lg-4">
     <div class="card mb-3">

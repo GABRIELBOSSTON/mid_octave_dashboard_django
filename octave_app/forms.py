@@ -36,16 +36,6 @@ class RegisterForm(UserCreationForm):
         self.fields['password1'].help_text = None
         self.fields['password2'].help_text = None
 
-    def clean_password1(self):
-        password = self.cleaned_data.get("password1")
-        if password:
-            if not any(x.isupper() for x in password):
-                raise forms.ValidationError("Password must contain at least one uppercase letter.")
-            import re
-            if not re.search(r"[@%$@!#%^&*()_+={}\[\]:;\"'<>,.?/|\\~`-]", password):
-                raise forms.ValidationError("Password must contain at least one special character.")
-        return password
-
 
 class LoginForm(AuthenticationForm):
     def __init__(self, *args, **kwargs):
@@ -223,3 +213,67 @@ class ThreatScenarioForm(forms.ModelForm):
         if asset:
             self.fields['container'].queryset = AssetContainer.objects.filter(asset=asset)
             self.fields['container'].required = False
+
+
+# ── Audit Assessment Forms ────────────────────────────────────
+
+from .models import AuditAssessment, AuditControl, AuditEvidence
+
+class AssignAuditeeAuditForm(forms.ModelForm):
+    class Meta:
+        model  = AuditAssessment
+        fields = ['assigned_auditee']
+        widgets = {'assigned_auditee': forms.Select(attrs={'class': 'form-select'})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['assigned_auditee'].queryset    = User.objects.filter(profile__role='auditee')
+        self.fields['assigned_auditee'].required    = False
+        self.fields['assigned_auditee'].empty_label = '— Unassigned —'
+        self.fields['assigned_auditee'].label       = 'Assign Auditee (Organisation Staff)'
+
+
+class AuditAssessmentForm(forms.ModelForm):
+    class Meta:
+        model  = AuditAssessment
+        fields = ['title', 'organization', 'scope', 'assessor_name', 'assessor_email',
+                  'start_date', 'end_date', 'status', 'notes']
+        widgets = {
+            'title':          forms.TextInput(attrs={'class': 'form-control'}),
+            'organization':   forms.TextInput(attrs={'class': 'form-control'}),
+            'scope':          forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'assessor_name':  forms.TextInput(attrs={'class': 'form-control'}),
+            'assessor_email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'start_date':     forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'end_date':       forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'status':         forms.Select(attrs={'class': 'form-select'}),
+            'notes':          forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        }
+
+
+class AuditControlForm(forms.ModelForm):
+    class Meta:
+        model  = AuditControl
+        fields = ['status', 'auditor_notes', 'affected_asset', 'recommendation', 'risk_level']
+        widgets = {
+            'status':         forms.Select(attrs={'class': 'form-select'}),
+            'auditor_notes':  forms.Textarea(attrs={'class': 'form-control', 'rows': 4,
+                                'placeholder': 'Describe your observations, evidence reviewed, and findings...'}),
+            'affected_asset': forms.TextInput(attrs={'class': 'form-control',
+                                'placeholder': 'e.g. Database Server, HR System, All Systems'}),
+            'recommendation': forms.Textarea(attrs={'class': 'form-control', 'rows': 3,
+                                'placeholder': 'What should be done to achieve or maintain compliance?'}),
+            'risk_level':     forms.Select(attrs={'class': 'form-select'}),
+        }
+
+
+class AuditEvidenceForm(forms.ModelForm):
+    class Meta:
+        model  = AuditEvidence
+        fields = ['evidence_type', 'title', 'description', 'file']
+        widgets = {
+            'evidence_type': forms.Select(attrs={'class': 'form-select'}),
+            'title':         forms.TextInput(attrs={'class': 'form-control'}),
+            'description':   forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'file':          forms.FileInput(attrs={'class': 'form-control'}),
+        }

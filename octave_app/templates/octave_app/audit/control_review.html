@@ -1,0 +1,135 @@
+{% extends 'octave_app/base.html' %}
+{% block title %}Review Control — {{ ctrl.control_name }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'audit_list' %}">Audit</a></li>
+<li class="breadcrumb-item"><a href="{% url 'audit_detail' ctrl.audit.pk %}">{{ ctrl.audit.title|truncatechars:25 }}</a></li>
+<li class="breadcrumb-item active">{{ ctrl.control_name }}</li>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  .evidence-card { border-radius:10px;border:1px solid #e2e8f0;padding:14px;background:#fafafa;transition:border-color .15s; }
+  .evidence-card:hover { border-color:#93c5fd; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- Control Review Form (Module 6 + 7) -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">
+        <div class="d-flex align-items-center gap-3">
+          <div style="background:linear-gradient(135deg,#064e3b,#059669);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
+            <i class="bi bi-clipboard2-check text-white"></i>
+          </div>
+          <div>
+            <div style="font-size:.72rem;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
+              <span style="background:#f1f5f9;border-radius:5px;padding:2px 7px;font-family:monospace;">{{ ctrl.iso_reference }}</span>
+            </div>
+            <h5 class="fw-bold mb-0 mt-1">{{ ctrl.control_name }}</h5>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+
+        <!-- Control Description -->
+        <div class="p-3 rounded mb-4" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+          <div style="font-size:.8rem;font-weight:700;color:#065f46;margin-bottom:4px;"><i class="bi bi-info-circle me-1"></i>Audit Objective</div>
+          <div style="font-size:.85rem;color:#374151;">{{ ctrl.description }}</div>
+        </div>
+
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Compliance Status <span class="text-danger">*</span></label>
+            {{ form.status }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Risk Level</label>
+            {{ form.risk_level }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Affected Asset</label>
+            {{ form.affected_asset }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Auditor Notes / Observations</label>
+            {{ form.auditor_notes }}
+            <div class="form-text">Describe your findings, evidence reviewed, and any gaps observed.</div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Recommendation</label>
+            {{ form.recommendation }}
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn fw-semibold px-4" style="background:linear-gradient(135deg,#064e3b,#059669);color:#fff;">
+              <i class="bi bi-check-lg me-1"></i>Save Review
+            </button>
+            <a href="{% url 'audit_detail' ctrl.audit.pk %}" class="btn btn-outline-secondary px-4">Back</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Evidence Panel (Module 7) -->
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0"><i class="bi bi-paperclip me-2"></i>Evidence</h6>
+        <a href="{% url 'audit_evidence_upload' ctrl.pk %}" class="btn btn-sm" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;">
+          <i class="bi bi-upload me-1"></i>Upload
+        </a>
+      </div>
+      <div class="card-body">
+        {% if evidences %}
+          {% for ev in evidences %}
+          <div class="evidence-card mb-2">
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="d-flex align-items-start gap-2">
+                <div style="width:34px;height:34px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <i class="{{ ev.get_type_icon }} text-primary"></i>
+                </div>
+                <div>
+                  <div class="fw-semibold" style="font-size:.85rem;">{{ ev.title }}</div>
+                  <div class="text-muted" style="font-size:.72rem;">{{ ev.get_evidence_type_display }}</div>
+                  {% if ev.description %}<div class="text-muted" style="font-size:.75rem;margin-top:2px;">{{ ev.description|truncatechars:60 }}</div>{% endif %}
+                  <div style="font-size:.7rem;color:#94a3b8;margin-top:3px;">{{ ev.uploaded_at|date:"M d, Y H:i" }}</div>
+                </div>
+              </div>
+              <div class="d-flex gap-1">
+                <a href="{{ ev.file.url }}" target="_blank" class="btn btn-xs btn-outline-secondary" style="font-size:.7rem;padding:2px 7px;"><i class="bi bi-eye"></i></a>
+                <form method="post" action="{% url 'audit_evidence_delete' ev.pk %}" onsubmit="return confirm('Delete this evidence?');" style="display:inline;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-xs btn-outline-danger" style="font-size:.7rem;padding:2px 7px;"><i class="bi bi-trash"></i></button>
+                </form>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+        <div class="text-center py-4 text-muted">
+          <i class="bi bi-paperclip d-block fs-2 mb-2"></i>
+          <div style="font-size:.85rem;">No evidence uploaded yet.</div>
+          <div style="font-size:.78rem;margin-top:4px;">Upload screenshots, PDFs, or photos to support this control.</div>
+        </div>
+        {% endif %}
+
+        <!-- Evidence types guide -->
+        <div class="mt-3 p-3 rounded" style="background:#f8fafc;border:1px dashed #e2e8f0;">
+          <div style="font-size:.72rem;font-weight:700;color:#64748b;margin-bottom:8px;text-transform:uppercase;">Accepted Evidence Types</div>
+          <div class="d-flex flex-wrap gap-2">
+            <span style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border-radius:5px;padding:2px 8px;"><i class="bi bi-image me-1"></i>Screenshot</span>
+            <span style="font-size:.72rem;background:#fdf4ff;color:#7e22ce;border-radius:5px;padding:2px 8px;"><i class="bi bi-file-earmark-pdf me-1"></i>Policy PDF</span>
+            <span style="font-size:.72rem;background:#f0fdf4;color:#15803d;border-radius:5px;padding:2px 8px;"><i class="bi bi-file-earmark-code me-1"></i>Config Export</span>
+            <span style="font-size:.72rem;background:#fff7ed;color:#c2410c;border-radius:5px;padding:2px 8px;"><i class="bi bi-camera me-1"></i>Photo</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

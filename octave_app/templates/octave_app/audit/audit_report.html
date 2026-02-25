@@ -1,0 +1,207 @@
+{% extends 'octave_app/base.html' %}
+{% block title %}Audit Report — {{ audit.title }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'audit_list' %}">Audit</a></li>
+<li class="breadcrumb-item"><a href="{% url 'audit_detail' audit.pk %}">{{ audit.title|truncatechars:25 }}</a></li>
+<li class="breadcrumb-item active">Report</li>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  .report-header { background: linear-gradient(135deg, #064e3b, #059669); color: #fff; border-radius: 16px; padding: 32px; margin-bottom: 28px; }
+  .opinion-box { border-radius: 12px; padding: 20px; margin-bottom: 28px; }
+  .finding-row { border-radius: 10px; border: 1.5px solid #e2e8f0; padding: 16px; margin-bottom: 10px; }
+  .finding-row.risk-high   { border-left: 4px solid #dc2626; }
+  .finding-row.risk-medium { border-left: 4px solid #d97706; }
+  .finding-row.risk-low    { border-left: 4px solid #16a34a; }
+  .ctrl-row { display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9; }
+  .ctrl-row:last-child { border:none; }
+  @media print { .no-print{display:none!important} }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 no-print">
+  <div></div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'audit_detail' audit.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+    <button onclick="window.print()" class="btn btn-sm btn-outline-dark"><i class="bi bi-printer me-1"></i>Print</button>
+  </div>
+</div>
+
+<!-- Report Header -->
+<div class="report-header">
+  <div class="row align-items-center">
+    <div class="col-md-8">
+      <div style="font-size:.75rem;opacity:.7;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">ISO 27001 Audit Report</div>
+      <h2 class="fw-bold mb-2">{{ audit.title }}</h2>
+      <div style="opacity:.8;font-size:.88rem;">
+        <i class="bi bi-building me-1"></i>{{ audit.organization }} &nbsp;·&nbsp;
+        <i class="bi bi-person me-1"></i>{{ audit.assessor_name }} &nbsp;·&nbsp;
+        <i class="bi bi-calendar3 me-1"></i>{{ report_date|date:"F d, Y" }}
+      </div>
+      <div class="mt-2" style="opacity:.7;font-size:.8rem;">Scope: {{ audit.scope }}</div>
+    </div>
+    <div class="col-md-4 text-center">
+      <div style="font-size:4rem;font-weight:900;line-height:1;">{{ compliance_score }}%</div>
+      <div style="font-size:.85rem;opacity:.8;">Overall Compliance</div>
+      <div class="mt-1">
+        <span class="badge bg-{% if compliance_color == 'success' %}light text-success{% elif compliance_color == 'warning' %}warning text-dark{% else %}danger{% endif %} px-3 py-2" style="font-size:.85rem;">
+          {{ compliance_label }}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Final Opinion -->
+<div class="opinion-box" style="background:{% if opinion_color == 'success' %}#f0fdf4;border:1.5px solid #bbf7d0{% elif opinion_color == 'warning' %}#fffbeb;border:1.5px solid #fde68a{% else %}#fef2f2;border:1.5px solid #fecaca{% endif %}">
+  <div class="d-flex align-items-center gap-3">
+    <div style="width:50px;height:50px;border-radius:14px;background:{% if opinion_color == 'success' %}#dcfce7{% elif opinion_color == 'warning' %}#fef3c7{% else %}#fee2e2{% endif %};display:flex;align-items:center;justify-content:center;font-size:1.5rem;">
+      <i class="bi bi-shield-{% if opinion_icon == 'shield-check' %}check text-success{% elif opinion_icon == 'shield-exclamation' %}exclamation text-warning{% else %}x text-danger{% endif %}"></i>
+    </div>
+    <div>
+      <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;">Final Audit Opinion</div>
+      <div style="font-size:1.2rem;font-weight:800;color:{% if opinion_color == 'success' %}#166534{% elif opinion_color == 'warning' %}#92400e{% else %}#991b1b{% endif %}">{{ opinion }}</div>
+    </div>
+    <div class="ms-auto text-end">
+      <div style="font-size:.78rem;color:#64748b;">{{ compliant_count }}/{{ total_controls }} Controls Compliant</div>
+      <div style="font-size:.78rem;color:#64748b;">{{ non_compliant_count }} Non-Compliant &nbsp;·&nbsp; {{ partial_count }} Partial</div>
+    </div>
+  </div>
+</div>
+
+<!-- Summary & Scoring -->
+<div class="row g-4 mb-4">
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header"><h6 class="fw-bold mb-0"><i class="bi bi-bar-chart me-2"></i>Compliance Breakdown</h6></div>
+      <div class="card-body">
+        <canvas id="breakdownChart" height="180"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card h-100">
+      <div class="card-header"><h6 class="fw-bold mb-0"><i class="bi bi-list-check me-2"></i>Control Status Summary</h6></div>
+      <div class="card-body p-0">
+        {% for ctrl in controls %}
+        <div class="ctrl-row px-3">
+          <span class="badge bg-{{ ctrl.get_status_color }} flex-shrink-0" style="font-size:.65rem;min-width:90px;text-align:center;">{{ ctrl.get_status_display }}</span>
+          <span style="font-size:.8rem;font-family:monospace;color:#64748b;flex-shrink:0;">{{ ctrl.iso_reference }}</span>
+          <span style="font-size:.82rem;font-weight:600;">{{ ctrl.control_name }}</span>
+          <span class="ms-auto badge bg-light text-muted" style="font-size:.65rem;">{{ ctrl.evidences.count }} ev.</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Audit Findings (Module 9) -->
+{% if findings %}
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center gap-2">
+    <h6 class="fw-bold mb-0"><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Audit Findings (MODULE 9)</h6>
+    <span class="badge bg-warning text-dark">{{ findings|length }} Finding{{ findings|length|pluralize }}</span>
+  </div>
+  <div class="card-body">
+    {% for f in findings %}
+    <div class="finding-row risk-{{ f.risk_level }}">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div class="fw-bold">{{ forloop.counter }}. {{ f.issue }}</div>
+        <div class="d-flex gap-1 flex-shrink-0">
+          <span class="badge bg-{{ f.control.get_status_color }}" style="font-size:.68rem;">{{ f.control.get_status_display }}</span>
+          <span class="badge {% if f.risk_level == 'high' %}risk-high{% elif f.risk_level == 'medium' %}risk-medium{% else %}risk-low{% endif %}" style="font-size:.68rem;">{{ f.risk_level|upper }}</span>
+        </div>
+      </div>
+      <div class="row g-3" style="font-size:.83rem;">
+        <div class="col-md-4">
+          <div style="font-size:.7rem;text-transform:uppercase;font-weight:700;color:#64748b;margin-bottom:3px;">Risk</div>
+          <div>{{ f.risk }}</div>
+        </div>
+        <div class="col-md-4">
+          <div style="font-size:.7rem;text-transform:uppercase;font-weight:700;color:#64748b;margin-bottom:3px;">Affected Asset</div>
+          <div>{{ f.asset }}</div>
+        </div>
+        <div class="col-md-4">
+          <div style="font-size:.7rem;text-transform:uppercase;font-weight:700;color:#64748b;margin-bottom:3px;">ISO Reference</div>
+          <div style="font-family:monospace;">{{ f.control.iso_reference }}</div>
+        </div>
+        <div class="col-12">
+          <div style="font-size:.7rem;text-transform:uppercase;font-weight:700;color:#64748b;margin-bottom:3px;">Recommendation</div>
+          <div class="p-2 rounded" style="background:#f8fafc;">{{ f.recommendation }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- AI Recommendations -->
+<div class="card mb-4">
+  <div class="card-header"><h6 class="fw-bold mb-0"><i class="bi bi-lightbulb me-2 text-warning"></i>Recommendations</h6></div>
+  <div class="card-body">
+    {% for rec in ai_recommendations %}
+    <div class="d-flex align-items-start gap-3 mb-3 {% if not forloop.last %}pb-3 border-bottom{% endif %}">
+      <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#064e3b,#059669);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="bi bi-{{ forloop.counter }}-circle-fill text-white" style="font-size:.8rem;"></i>
+      </div>
+      <div style="font-size:.85rem;">{{ rec }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Evidence Summary -->
+<div class="card">
+  <div class="card-header"><h6 class="fw-bold mb-0"><i class="bi bi-paperclip me-2"></i>Evidence Collected</h6></div>
+  <div class="card-body">
+    {% with total_ev=0 %}
+    {% for ctrl in controls %}
+      {% if ctrl.evidences.count > 0 %}
+      <div class="d-flex align-items-center gap-3 mb-2">
+        <span class="badge bg-{{ ctrl.get_status_color }}" style="min-width:90px;font-size:.65rem;text-align:center;">{{ ctrl.get_status_display }}</span>
+        <span class="fw-semibold" style="font-size:.85rem;">{{ ctrl.control_name }}</span>
+        <span class="ms-auto text-muted" style="font-size:.8rem;">{{ ctrl.evidences.count }} file(s)</span>
+        {% for ev in ctrl.evidences.all %}
+        <span style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border-radius:5px;padding:2px 7px;">
+          <i class="{{ ev.get_type_icon }} me-1"></i>{{ ev.title }}
+        </span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endfor %}
+    {% endwith %}
+    {% if not controls %}
+    <div class="text-muted text-center py-3" style="font-size:.85rem;">No evidence uploaded yet.</div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ctx = document.getElementById('breakdownChart').getContext('2d');
+new Chart(ctx, {
+  type: 'doughnut',
+  data: {
+    labels: ['Compliant', 'Non-Compliant', 'Partial', 'Not Reviewed'],
+    datasets: [{
+      data: [{{ compliant_count }}, {{ non_compliant_count }}, {{ partial_count }}, {{ controls|length|add:"-"|add:compliant_count|add:"-"|add:non_compliant_count|add:"-"|add:partial_count }}],
+      backgroundColor: ['#16a34a','#dc2626','#d97706','#94a3b8'],
+      borderWidth: 2, borderColor: '#fff',
+    }]
+  },
+  options: {
+    cutout: '55%',
+    plugins: {
+      legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12 } }
+    }
+  }
+});
+</script>
+{% endblock %}

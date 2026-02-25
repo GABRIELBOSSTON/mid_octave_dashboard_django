@@ -415,6 +415,150 @@ class ThreatScenario(models.Model):
         return {'low': 'success', 'medium': 'warning', 'high': 'danger'}.get(self.probability, 'secondary')
 
 
+# ══════════════════════════════════════════════════════════════
+# MODULE 6 — AUDIT ASSESSMENT (ISO 27001)
+# ══════════════════════════════════════════════════════════════
+
+ISO27001_CONTROLS = [
+    ('password_policy',          'Password Policy',               'A.9.4.3',  'Verify that a strong password policy is enforced across all systems.'),
+    ('backup_policy',            'Backup Policy',                 'A.12.3.1', 'Verify that data backups are performed and tested regularly.'),
+    ('access_control',           'Access Control',                'A.9.1.1',  'Verify that access rights are granted based on least privilege.'),
+    ('antivirus',                'Antivirus / Malware Protection','A.12.2.1', 'Verify that anti-malware software is installed and up to date.'),
+    ('logging',                  'Logging & Monitoring',          'A.12.4.1', 'Verify that system events are logged and reviewed regularly.'),
+    ('incident_response',        'Incident Response Procedure',   'A.16.1.1', 'Verify that an incident response plan exists and has been tested.'),
+    ('network_security',         'Network Security Management',   'A.13.1.1', 'Verify that network controls are in place to protect information.'),
+    ('physical_security',        'Physical & Environmental Security','A.11.1.1','Verify physical access to facilities is controlled and monitored.'),
+    ('asset_management',         'Asset Management',              'A.8.1.1',  'Verify that all information assets are identified and documented.'),
+    ('cryptography',             'Cryptography Policy',           'A.10.1.1', 'Verify that encryption is applied to sensitive data at rest and in transit.'),
+    ('supplier_security',        'Supplier Relationships',        'A.15.1.1', 'Verify that information security requirements are agreed with suppliers.'),
+    ('business_continuity',      'Business Continuity Management','A.17.1.1', 'Verify that a business continuity plan exists and is tested.'),
+]
+
+AUDIT_STATUS_CHOICES = [
+    ('draft',       'Draft'),
+    ('in_progress', 'In Progress'),
+    ('completed',   'Completed'),
+]
+
+CONTROL_STATUS_CHOICES = [
+    ('compliant',     'Compliant'),
+    ('non_compliant', 'Non-Compliant'),
+    ('partial',       'Partially Compliant'),
+    ('not_reviewed',  'Not Reviewed'),
+]
+
+
+class AuditAssessment(models.Model):
+    owner          = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                         related_name='audit_assessments')
+    assigned_auditee = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                         related_name='assigned_audit_assessments')
+    title          = models.CharField(max_length=255)
+    organization   = models.CharField(max_length=255)
+    scope          = models.TextField()
+    assessor_name  = models.CharField(max_length=255)
+    assessor_email = models.EmailField(blank=True)
+    start_date     = models.DateField(default=timezone.now)
+    end_date       = models.DateField(null=True, blank=True)
+    status         = models.CharField(max_length=20, choices=AUDIT_STATUS_CHOICES, default='draft')
+    notes          = models.TextField(blank=True)
+    created_at     = models.DateTimeField(default=timezone.now)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'[AUDIT] {self.title} — {self.organization}'
+
+    def get_compliance_score(self):
+        controls = self.controls.all()
+        total = controls.count()
+        if total == 0:
+            return 0, 'No Controls', 'secondary'
+        compliant = controls.filter(status='compliant').count()
+        partial   = controls.filter(status='partial').count()
+        score = int(((compliant + partial * 0.5) / total) * 100)
+        if score >= 85:
+            label, color = 'Compliant', 'success'
+        elif score >= 60:
+            label, color = 'Needs Improvement', 'warning'
+        else:
+            label, color = 'Non-Compliant', 'danger'
+        return score, label, color
+
+    def get_findings(self):
+        return self.controls.exclude(status='compliant').exclude(status='not_reviewed')
+
+    def get_final_opinion(self):
+        score, _, _ = self.get_compliance_score()
+        nc = self.controls.filter(status='non_compliant').count()
+        if score >= 85 and nc == 0:
+            return 'Secure', 'success', 'shield-check'
+        elif score >= 60 or nc <= 2:
+            return 'Acceptable Risk', 'warning', 'shield-exclamation'
+        else:
+            return 'Needs Immediate Action', 'danger', 'shield-x'
+
+
+class AuditControl(models.Model):
+    audit          = models.ForeignKey(AuditAssessment, on_delete=models.CASCADE, related_name='controls')
+    control_id     = models.CharField(max_length=50)   # e.g. 'password_policy'
+    control_name   = models.CharField(max_length=255)
+    iso_reference  = models.CharField(max_length=20, blank=True)
+    description    = models.TextField(blank=True)
+    status         = models.CharField(max_length=20, choices=CONTROL_STATUS_CHOICES, default='not_reviewed')
+    auditor_notes  = models.TextField(blank=True, help_text='Observations and findings from the auditor.')
+    affected_asset = models.CharField(max_length=255, blank=True)
+    recommendation = models.TextField(blank=True)
+    risk_level     = models.CharField(max_length=10, choices=[('high','High'),('medium','Medium'),('low','Low')], default='medium', blank=True)
+    created_at     = models.DateTimeField(default=timezone.now)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['control_id']
+
+    def __str__(self):
+        return f'{self.control_name} — {self.audit.title}'
+
+    def get_status_color(self):
+        return {
+            'compliant':     'success',
+            'non_compliant': 'danger',
+            'partial':       'warning',
+            'not_reviewed':  'secondary',
+        }.get(self.status, 'secondary')
+
+
+class AuditEvidence(models.Model):
+    EVIDENCE_TYPE_CHOICES = [
+        ('screenshot',    'Screenshot'),
+        ('policy_doc',    'Policy Document (PDF)'),
+        ('config_export', 'Configuration Export'),
+        ('photo',         'Photo'),
+        ('other',         'Other'),
+    ]
+    control      = models.ForeignKey(AuditControl, on_delete=models.CASCADE, related_name='evidences')
+    evidence_type = models.CharField(max_length=20, choices=EVIDENCE_TYPE_CHOICES)
+    title        = models.CharField(max_length=255)
+    description  = models.TextField(blank=True)
+    file         = models.FileField(upload_to='audit_evidence/')
+    uploaded_by  = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    uploaded_at  = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f'{self.title} ({self.get_evidence_type_display()})'
+
+    def get_type_icon(self):
+        return {
+            'screenshot':    'bi-image',
+            'policy_doc':    'bi-file-earmark-pdf',
+            'config_export': 'bi-file-earmark-code',
+            'photo':         'bi-camera',
+            'other':         'bi-paperclip',
+        }.get(self.evidence_type, 'bi-paperclip')
+
+
 # ── Auto-create profile on user creation ─────────────────────
 from django.db.models.signals import post_save
 from django.dispatch import receiver

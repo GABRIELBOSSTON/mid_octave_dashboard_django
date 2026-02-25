@@ -11,7 +11,10 @@ urlpatterns = [
     path('users/<int:user_pk>/edit/', views.user_edit,    name='user_edit'),
     path('users/<int:user_pk>/delete/', views.user_delete, name='user_delete'),
 
-    # Dashboard & Assessment
+    # Module Selection (Auditor)
+    path('select-module/',            views.module_selection, name='module_selection'),
+
+    # Dashboard & Risk Assessment
     path('',                                     views.dashboard,          name='dashboard'),
     path('assessments/',                          views.assessment_list,    name='assessment_list'),
     path('assessments/new/',                      views.assessment_create,  name='assessment_create'),
@@ -43,5 +46,18 @@ urlpatterns = [
     path('assets/<int:asset_pk>/threats/add/',  views.step4_threat_add,    name='step4_threat_add'),
     path('threats/<int:threat_pk>/edit/',       views.step4_threat_edit,   name='step4_threat_edit'),
     path('threats/<int:threat_pk>/delete/',     views.step4_threat_delete, name='step4_threat_delete'),
+
+    # ── Audit Assessment (ISO 27001) ─────────────────────────
+    path('audit/',                                views.audit_list,             name='audit_list'),
+    path('audit/dashboard/',                      views.audit_dashboard,         name='audit_dashboard'),
+    path('audit/new/',                            views.audit_assessment_create,name='audit_assessment_create'),
+    path('audit/<int:pk>/',                       views.audit_detail,           name='audit_detail'),
+    path('audit/<int:pk>/edit/',                  views.audit_update,           name='audit_update'),
+    path('audit/<int:pk>/delete/',                views.audit_delete,           name='audit_delete'),
+    path('audit/<int:pk>/assign-auditee/',                views.audit_assign_auditee,   name='audit_assign_auditee'),
+    path('audit/<int:pk>/report/',                views.audit_report,           name='audit_report'),
+    path('audit/control/<int:control_pk>/',       views.audit_control_review,   name='audit_control_review'),
+    path('audit/control/<int:control_pk>/evidence/upload/', views.audit_evidence_upload, name='audit_evidence_upload'),
+    path('audit/evidence/<int:evidence_pk>/delete/', views.audit_evidence_delete, name='audit_evidence_delete'),
 ]
 
