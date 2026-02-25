@@ -14,6 +14,9 @@
     .form-label{font-weight:600;font-size:.82rem;color:#374151;}
     .notice-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;font-size:.82rem;color:#1e40af;}
     .section-title{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;font-weight:700;border-bottom:1px solid #f0f4f8;padding-bottom:6px;margin:20px 0 14px;}
+    .strength-meter {height: 6px; background-color: #e9ecef; border-radius: 3px; margin-top: 5px; overflow: hidden; display: none;}
+    .strength-meter-fill {height: 100%; width: 0%; transition: width 0.3s ease, background-color 0.3s ease;}
+    .strength-text {font-size: 0.75rem; margin-top: 2px; font-weight: 600;}
   </style>
 </head>
 <body>
@@ -64,6 +67,12 @@
           </div>
           <div class="col-6">
             <label class="form-label">Password</label>{{ form.password1 }}
+            <div id="password-strength-container" style="display: none;">
+              <div class="strength-meter">
+                <div id="strength-bar" class="strength-meter-fill"></div>
+              </div>
+              <div id="strength-text" class="strength-text"></div>
+            </div>
           </div>
           <div class="col-6">
             <label class="form-label">Confirm Password</label>{{ form.password2 }}
@@ -93,5 +102,46 @@
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const passwordInput = document.querySelector('input[name="password1"]');
+    const strengthContainer = document.getElementById('password-strength-container');
+    const strengthBar = document.getElementById('strength-bar');
+    const strengthText = document.getElementById('strength-text');
+
+    passwordInput.addEventListener('input', function() {
+      const val = passwordInput.value;
+      if (val.length === 0) {
+        strengthContainer.style.display = 'none';
+        return;
+      }
+      
+      strengthContainer.style.display = 'block';
+      let strength = 0;
+      
+      if (val.length >= 8) strength += 20;
+      if (/[A-Z]/.test(val)) strength += 20;
+      if (/[a-z]/.test(val)) strength += 20;
+      if (/[0-9]/.test(val)) strength += 20;
+      if (/[@%$@!#%^&*()_+={}\[\]:;\"'<>,.?/|\\~`-]/.test(val)) strength += 20;
+
+      strengthBar.style.width = strength + '%';
+      
+      if (strength <= 40) {
+        strengthBar.style.backgroundColor = '#dc3545';
+        strengthText.innerText = 'Strength: Low';
+        strengthText.style.color = '#dc3545';
+      } else if (strength <= 80) {
+        strengthBar.style.backgroundColor = '#ffc107';
+        strengthText.innerText = 'Strength: Medium';
+        strengthText.style.color = '#ffc107';
+      } else {
+        strengthBar.style.backgroundColor = '#198754';
+        strengthText.innerText = 'Strength: Strong';
+        strengthText.style.color = '#198754';
+      }
+    });
+  });
+</script>
 </body>
 </html>
