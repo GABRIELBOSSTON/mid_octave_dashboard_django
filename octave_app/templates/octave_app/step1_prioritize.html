@@ -1,0 +1,55 @@
+{% extends 'octave_app/base.html' %}
+{% block title %}WS-7 Prioritize — {{ assessment.title }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'assessment_detail' assessment.pk %}">{{ assessment.title }}</a></li>
+<li class="breadcrumb-item"><a href="{% url 'step1_criteria' assessment.pk %}">Step 1</a></li>
+<li class="breadcrumb-item active">Impact Area Prioritization</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="d-flex align-items-center gap-3 mb-4">
+      <h2 class="fw-bold mb-0">WS-7 — Impact Area Prioritization</h2>
+    </div>
+
+    <div class="alert alert-light border small mb-4">
+      <strong><i class="bi bi-info-circle me-1"></i>Instructions:</strong>
+      Assign a unique rank from <strong>1 to 5</strong> to each impact area.
+      <strong>5 = most important</strong> to your organisation, <strong>1 = least important</strong>.
+      No two areas can share the same rank.
+      <br><br>
+      This rank will <strong>multiply</strong> the impact value (Low=1, Moderate=2, High=3) to produce the final risk score:
+      <br><code>Risk Score = Impact Value × Priority Rank &nbsp; (max = 15)</code>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-4">
+        <form method="post" novalidate>{% csrf_token %}
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+            {% if field.errors %}<div class="text-danger small">{{ field.errors.0 }}</div>{% endif %}
+          </div>
+          {% endfor %}
+          {% if not form.fields %}
+          <div class="text-center text-muted py-3">
+            <i class="bi bi-exclamation-circle d-block fs-2 mb-2"></i>
+            No impact areas defined yet.
+            <a href="{% url 'step1_criteria_add' assessment.pk %}">Add criteria first →</a>
+          </div>
+          {% else %}
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-success px-4"><i class="bi bi-save me-1"></i>Save Priorities</button>
+            <a href="{% url 'step1_criteria' assessment.pk %}" class="btn btn-outline-secondary">Back</a>
+          </div>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends 'octave_app/base.html' %}
+{% block title %}Assessments{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Assessments</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  {% if user.profile.role == 'admin' %}
+  <div>
+    <h2 class="fw-bold mb-0">All Assessments</h2>
+    <p class="text-muted small mb-0">Read-only overview of all platform assessments</p>
+  </div>
+  {% elif user.profile.role == 'auditor' %}
+  <h2 class="fw-bold mb-0">My Assessments</h2>
+  <a href="{% url 'assessment_create' %}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>New Assessment</a>
+  {% else %}
+  <div>
+    <h2 class="fw-bold mb-0">My Assigned Assessments</h2>
+    <p class="text-muted small mb-0">View-only access</p>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if assessments %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">Title</th>
+            <th>Organisation</th>
+            {% if user.profile.role == 'admin' %}<th>Auditor</th>{% endif %}
+            <th>Status</th>
+            <th>S1</th><th>S2</th><th>S3</th>
+            <th>Threats</th><th>High</th>
+            <th class="pe-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for a in assessments %}
+        {% with s=a.get_risk_summary %}
+        <tr>
+          <td class="ps-4"><a href="{% url 'assessment_detail' a.pk %}" class="fw-semibold text-decoration-none text-dark">{{ a.title }}</a></td>
+          <td class="small">{{ a.organization }}</td>
+          {% if user.profile.role == 'admin' %}
+          <td class="small text-muted">{{ a.owner.get_full_name|default:a.owner.username|default:"—" }}</td>
+          {% endif %}
+          <td>
+            {% if a.status == 'completed' %}<span class="badge bg-success">Done</span>
+            {% elif a.status == 'in_progress' %}<span class="badge bg-warning text-dark">Active</span>
+            {% else %}<span class="badge bg-secondary">Draft</span>{% endif %}
+          </td>
+          <td class="text-center">{% if a.is_step1_complete %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-circle text-muted"></i>{% endif %}</td>
+          <td class="text-center">{% if a.is_step2_complete %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-circle text-muted"></i>{% endif %}</td>
+          <td class="text-center">{% if a.is_step3_complete %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-circle text-muted"></i>{% endif %}</td>
+          <td class="text-center">{{ a.get_all_threats.count }}</td>
+          <td><span class="badge risk-high">{{ s.high }}</span></td>
+          <td class="pe-3">
+            <div class="btn-group btn-group-sm">
+              <a href="{% url 'assessment_detail' a.pk %}" class="btn btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
+              <a href="{% url 'generate_report' a.pk %}" class="btn btn-outline-success" title="Report"><i class="bi bi-file-text"></i></a>
+              {% if user.profile.role == 'admin' %}
+              <a href="{% url 'assign_auditee' a.pk %}" class="btn btn-outline-primary" title="Assign Auditee"><i class="bi bi-person-check"></i></a>
+              {% elif user.profile.role == 'auditor' %}
+              <a href="{% url 'assessment_update' a.pk %}" class="btn btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
+              <a href="{% url 'assessment_delete' a.pk %}" class="btn btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-folder-x d-block fs-1 mb-3"></i>
+      {% if user.profile.role == 'auditor' %}
+      <p>No assessments yet.</p>
+      <a href="{% url 'assessment_create' %}" class="btn btn-primary">Create First Assessment</a>
+      {% elif user.profile.role == 'auditee' %}
+      <p>No assessments have been assigned to you yet.</p>
+      <p class="small">Contact your auditor to get started.</p>
+      {% else %}
+      <p>No assessments on the platform yet.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

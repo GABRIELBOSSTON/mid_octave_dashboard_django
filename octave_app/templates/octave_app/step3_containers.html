@@ -1,0 +1,62 @@
+{% extends 'octave_app/base.html' %}
+{% block title %}Step 3 Containers — {{ asset.name }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'assessment_detail' asset.assessment.pk %}">{{ asset.assessment.title }}</a></li>
+<li class="breadcrumb-item active">Step 3 — Containers</li>
+{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h2 class="fw-bold mb-1">Step 3 — Identify Asset Containers</h2>
+    <p class="text-muted mb-0 small"><span class="ws-badge">WS-9</span> &nbsp; Risk Environment Map for: <strong>{{ asset.name }}</strong></p>
+  </div>
+  <a href="{% url 'step3_container_add' asset.pk %}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i> Add Container</a>
+</div>
+<div class="alert alert-light border small mb-4">
+  <strong><i class="bi bi-info-circle me-1"></i>Instructions:</strong>
+  Map every location where this information asset is <strong>stored</strong>, <strong>transported</strong>, or <strong>processed</strong>.
+  Cover all 4 container types. These will scope your threat scenarios in Steps 4-5.
+</div>
+{% if containers %}
+<div class="card mb-4">
+  <div class="card-header"><h6 class="fw-bold mb-0">Containers for: {{ asset.name }}</h6></div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr><th class="ps-3">Type</th><th>Name</th><th>Description</th><th>Location / Owner</th><th>Critical</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for c in containers %}
+        <tr>
+          <td class="ps-3"><span class="badge {% if c.container_type == 'internal_technical' %}bg-primary{% elif c.container_type == 'external_technical' %}bg-info{% elif c.container_type == 'physical' %}bg-warning text-dark{% else %}bg-secondary{% endif %} small">{{ c.get_container_type_display }}</span></td>
+          <td class="fw-semibold small">{{ c.name }}</td>
+          <td class="small text-muted">{{ c.description|truncatechars:100 }}</td>
+          <td class="small text-muted">{{ c.location|default:"" }}{% if c.owner %} / {{ c.owner }}{% endif %}</td>
+          <td>{% if c.is_critical %}<span class="badge bg-danger">Yes</span>{% endif %}</td>
+          <td>
+            <div class="btn-group btn-group-sm">
+              <a href="{% url 'step3_container_edit' c.pk %}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+              <a href="{% url 'step3_container_delete' c.pk %}" class="btn btn-outline-danger"><i class="bi bi-trash"></i></a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card mb-4"><div class="card-body text-center py-5 text-muted">
+  <i class="bi bi-diagram-3 d-block fs-1 mb-3"></i>
+  <p>No containers mapped yet.</p>
+  <a href="{% url 'step3_container_add' asset.pk %}" class="btn btn-primary">Add First Container</a>
+</div></div>
+{% endif %}
+<div class="d-flex gap-2">
+  <a href="{% url 'step4_threat_add' asset.pk %}" class="btn btn-success"><i class="bi bi-arrow-right me-1"></i> Continue → Add Threat Scenarios (WS-10)</a>
+  <a href="{% url 'assessment_detail' asset.assessment.pk %}" class="btn btn-outline-secondary">Back</a>
+</div>
+{% endblock %}

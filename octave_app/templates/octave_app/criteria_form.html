@@ -1,0 +1,74 @@
+{% extends 'octave_app/base.html' %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'assessment_detail' assessment.pk %}">{{ assessment.title }}</a></li>
+<li class="breadcrumb-item"><a href="{% url 'step1_criteria' assessment.pk %}">Step 1</a></li>
+<li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="d-flex align-items-center gap-3 mb-4">
+      <h2 class="fw-bold mb-0">{{ page_title }}</h2>
+      <span class="ws-badge">WS-1 to WS-6</span>
+    </div>
+
+    <div class="alert alert-light border small mb-4">
+      <strong>Instructions:</strong> Select the impact area, name the criterion (e.g. "Revenue Loss"),
+      then describe in plain language what constitutes a Low, Moderate, and High impact for your organisation.
+      Add one row per measurable criterion.
+    </div>
+
+    <div class="card">
+      <div class="card-body p-4">
+        <form method="post" novalidate>{% csrf_token %}
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Impact Area *</label>
+              {{ form.impact_area }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Area Label <span class="text-muted fw-normal">(if User-Defined)</span></label>
+              {{ form.area_label }}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Criterion Name *</label>
+              {{ form.criterion }}
+              <div class="form-text">Examples: Revenue Loss, Customer Loss, Staff Hours, Life Safety, Fines</div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <div class="p-3 rounded" style="border:2px solid #16a34a;background:#f0fdf4">
+                <label class="form-label fw-bold text-success">Low Impact Criteria</label>
+                {{ form.low_criteria }}
+                {% if form.low_criteria.errors %}<div class="text-danger small">{{ form.low_criteria.errors.0 }}</div>{% endif %}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="p-3 rounded" style="border:2px solid #d97706;background:#fffbeb">
+                <label class="form-label fw-bold text-warning">Moderate Impact Criteria</label>
+                {{ form.mod_criteria }}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="p-3 rounded" style="border:2px solid #dc2626;background:#fef2f2">
+                <label class="form-label fw-bold text-danger">High Impact Criteria</label>
+                {{ form.high_criteria }}
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i>{{ btn }}</button>
+            <a href="{% url 'step1_criteria' assessment.pk %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

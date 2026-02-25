@@ -1,0 +1,515 @@
+{% extends 'octave_app/base.html' %}
+{% block title %}Risk Report — {{ assessment.title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .rpt-cover{background:linear-gradient(135deg,#0d1f3c,#1d4ed8);color:#fff;border-radius:14px;padding:36px 40px}
+  .rpt-section h4{color:#0d1f3c;border-bottom:2px solid #0d1f3c;padding-bottom:8px;margin-bottom:20px;font-weight:700}
+  .ws-table th{background:#0d1f3c;color:#fff;font-size:.75rem;padding:8px 12px}
+  .ws-table td{font-size:.82rem;padding:8px 12px;vertical-align:top}
+  .ws-table tr:nth-child(even){background:#f8fafc}
+  .impact-low{background:#dcfce7;color:#166534;font-weight:700;padding:2px 8px;border-radius:4px}
+  .impact-med{background:#fef9c3;color:#854d0e;font-weight:700;padding:2px 8px;border-radius:4px}
+  .impact-high{background:#fee2e2;color:#991b1b;font-weight:700;padding:2px 8px;border-radius:4px}
+  @media print{
+    .sidebar,.topbar,.no-print{display:none!important}
+    .main{margin-left:0!important}
+    .content{padding:0!important}
+    .card{box-shadow:none!important;border:1px solid #ddd!important}
+    .rpt-cover{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .ws-table th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    @page{margin:1.5cm}
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'assessment_detail' assessment.pk %}">{{ assessment.title }}</a></li>
+<li class="breadcrumb-item active">Report</li>
+{% endblock %}
+
+{% block content %}
+
+<!-- Actions -->
+<div class="d-flex justify-content-between align-items-center mb-4 no-print">
+  <h2 class="fw-bold mb-0">OCTAVE Allegro Risk Report</h2>
+  <div class="d-flex gap-2">
+    <button onclick="window.print()" class="btn btn-outline-secondary">
+      <i class="bi bi-printer me-1"></i> Print / Save PDF
+    </button>
+    <a href="{% url 'assessment_detail' assessment.pk %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i> Back
+    </a>
+  </div>
+</div>
+
+<!-- ━━━━━ COVER PAGE ━━━━━ -->
+<div class="rpt-cover mb-4">
+  <div class="row align-items-center">
+    <div class="col-md-8">
+      <div style="font-size:.72rem;opacity:.6;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px">
+        OCTAVE Allegro v1.0 — Security Audit Report
+      </div>
+      <h1 class="fw-bold mb-3" style="font-size:1.8rem">{{ assessment.title }}</h1>
+      <div class="row g-3">
+        <div class="col-auto">
+          <div style="opacity:.6;font-size:.72rem">ORGANISATION</div>
+          <div class="fw-semibold">{{ assessment.organization }}</div>
+        </div>
+        <div class="col-auto">
+          <div style="opacity:.6;font-size:.72rem">ASSESSOR</div>
+          <div class="fw-semibold">{{ assessment.assessor_name }}{% if assessment.assessor_email %} — {{ assessment.assessor_email }}{% endif %}</div>
+        </div>
+        <div class="col-auto">
+          <div style="opacity:.6;font-size:.72rem">PERIOD</div>
+          <div class="fw-semibold">{{ assessment.start_date|date:"d M Y" }}{% if assessment.end_date %} – {{ assessment.end_date|date:"d M Y" }}{% endif %}</div>
+        </div>
+        <div class="col-auto">
+          <div style="opacity:.6;font-size:.72rem">REPORT DATE</div>
+          <div class="fw-semibold">{{ report_date|date:"d F Y" }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 text-end">
+      <div class="d-inline-flex gap-3">
+        <div class="text-center px-4 py-3 rounded" style="background:rgba(255,255,255,.12)">
+          <div style="font-size:2rem;font-weight:800">{{ risk_summary.high }}</div>
+          <div style="font-size:.72rem;opacity:.7">HIGH RISKS</div>
+        </div>
+        <div class="text-center px-4 py-3 rounded" style="background:rgba(255,255,255,.12)">
+          <div style="font-size:2rem;font-weight:800">{{ scored_threats|length }}</div>
+          <div style="font-size:.72rem;opacity:.7">THREATS FOUND</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━ 1. EXECUTIVE SUMMARY ━━━━━ -->
+<div id="sec-1"></div>
+<div class="card mb-4">
+  <div class="card-body p-4">
+    <h4 class="sec-heading"><span class="sec-num">Executive Summary</h4>
+    <p>
+      This Security Audit Report presents the findings of a risk assessment conducted on
+      <strong>{{ assessment.organization }}</strong> using the <strong>OCTAVE Allegro v1.0</strong> methodology.
+      The assessment was performed by <strong>{{ assessment.assessor_name }}</strong>
+      covering the period {{ assessment.start_date|date:"d M Y" }}{% if assessment.end_date %} to {{ assessment.end_date|date:"d M Y" }}{% endif %}.
+    </p>
+    <p>
+      A total of <strong>{{ assets|length }}</strong> information asset(s) were identified and profiled.
+      Risk analysis identified <strong>{{ scored_threats|length }}</strong> threat scenario(s), of which
+      <strong class="text-danger">{{ risk_summary.high }}</strong> were classified as HIGH risk,
+      <strong class="text-warning">{{ risk_summary.medium }}</strong> as MEDIUM risk, and
+      <strong class="text-success">{{ risk_summary.low }}</strong> as LOW risk.
+    </p>
+    <p>
+      The overall compliance score is <strong>{{ compliance_pct }}%</strong>
+      (<span class="badge bg-{{ compliance_color }}">{{ compliance_label }}</span>),
+      based on the proportion of identified threats with documented mitigation strategies.
+      The final audit opinion for this assessment is:
+      <strong style="color:{% if final_opinion_color == 'success' %}#16a34a{% elif final_opinion_color == 'warning' %}#d97706{% else %}#dc2626{% endif %}">
+        {{ final_opinion }}
+      </strong>.
+    </p>
+    {% if assessment.scope %}
+    <div class="alert alert-light border mt-3 mb-0">
+      <strong>Assessment Scope:</strong> {{ assessment.scope }}
+      {% if assessment.notes %}<br><span class="text-muted">{{ assessment.notes }}</span>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ━━━━━ 2. SCOPE OF AUDIT ━━━━━ -->
+<div id="sec-2"></div>
+<div class="card mb-4">
+  <div class="card-body p-4">
+    <h4 class="sec-heading"><span class="sec-num">Scope of Audit</h4>
+    <table class="table ws-table table-bordered">
+      <tbody>
+        <tr>
+          <td class="fw-semibold" style="width:25%;background:#fafafa">Organisation</td>
+          <td>{{ assessment.organization }}</td>
+        </tr>
+        <tr>
+          <td class="fw-semibold" style="background:#fafafa">Scope Description</td>
+          <td>{{ assessment.scope|default:"Not specified." }}</td>
+        </tr>
+        <tr>
+          <td class="fw-semibold" style="background:#fafafa">Assessment Period</td>
+          <td>{{ assessment.start_date|date:"d M Y" }}{% if assessment.end_date %} – {{ assessment.end_date|date:"d M Y" }}{% endif %}</td>
+        </tr>
+        <tr>
+          <td class="fw-semibold" style="background:#fafafa">Lead Assessor</td>
+          <td>{{ assessment.assessor_name }}{% if assessment.assessor_email %} ({{ assessment.assessor_email }}){% endif %}</td>
+        </tr>
+        <tr>
+          <td class="fw-semibold" style="background:#fafafa">Assets in Scope</td>
+          <td>{{ assets|length }} information asset(s)</td>
+        </tr>
+        <tr>
+          <td class="fw-semibold" style="background:#fafafa">Report Status</td>
+          <td>{{ assessment.get_status_display }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ━━━━━ 3. METHODOLOGY ━━━━━ -->
+<div id="sec-3"></div>
+<div class="card mb-4">
+  <div class="card-body p-4">
+    <h4 class="sec-heading"><span class="sec-num">Methodology</h4>
+    <p>
+      This assessment follows the <strong>OCTAVE Allegro v1.0</strong>
+      (Operationally Critical Threat, Asset, and Vulnerability Evaluation) methodology,
+      developed by Carnegie Mellon University's Software Engineering Institute.
+      OCTAVE Allegro is a streamlined, risk-based approach focused on information assets
+      and their exposure in operational environments.
+    </p>
+    <div class="row g-3 mt-1">
+      <div class="col-md-6">
+        <div class="p-3 rounded border" style="border-left:4px solid #0d1f3c!important">
+          <div class="fw-bold small mb-2">Steps Followed</div>
+          <ol class="small mb-0 ps-3">
+            <li>Establish Risk Measurement Criteria (WS-1 to WS-6)</li>
+            <li>Develop Information Asset Profiles (WS-8)</li>
+            <li>Identify Asset Containers (WS-9)</li>
+            <li>Identify Areas of Concern (WS-10)</li>
+            <li>Identify Threat Scenarios (WS-10)</li>
+            <li>Identify Risks (WS-10)</li>
+            <li>Analyse Risks — Score = Impact × Priority (WS-10)</li>
+            <li>Select Mitigation Approach (WS-10)</li>
+          </ol>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━ SECTION 1: WS-1 to WS-6 RISK MEASUREMENT CRITERIA ━━━━━ -->
+<div class="card mb-4">
+  <div class="card-body p-4">
+    <h4>Section 1 — Risk Measurement Criteria <small class="text-muted fw-normal fs-6">(WS-1 to WS-6)</small></h4>
+    <p class="text-muted small mb-3">
+      The following criteria define what Low, Moderate, and High impact means for {{ assessment.organization }}.
+      These criteria were used to classify the impact of every threat scenario.
+    </p>
+    {% for area_name, crits in criteria_grouped.items %}
+    <h6 class="fw-bold mt-3 mb-2">{{ area_name }}</h6>
+    <table class="table ws-table table-bordered mb-3">
+      <thead>
+        <tr>
+          <th style="width:20%">Criterion</th>
+          <th style="width:27%">Low Impact</th>
+          <th style="width:27%">Moderate Impact</th>
+          <th style="width:26%">High Impact</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in crits %}
+      <tr>
+        <td class="fw-semibold">{{ c.criterion }}</td>
+        <td style="border-left:3px solid #16a34a">{{ c.low_criteria }}</td>
+        <td style="border-left:3px solid #d97706">{{ c.mod_criteria }}</td>
+        <td style="border-left:3px solid #dc2626">{{ c.high_criteria }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% empty %}
+    <div class="alert alert-warning">No impact criteria defined for this assessment.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ━━━━━ SECTION 2: WS-7 IMPACT AREA PRIORITIZATION ━━━━━ -->
+<div class="card mb-4">
+  <div class="card-body p-4">
+    <h4>Section 2 — Impact Area Prioritization <small class="text-muted fw-normal fs-6">(WS-7)</small></h4>
+    <p class="text-muted small mb-3">
+      Impact areas ranked by importance to {{ assessment.organization }}.
+      Rank 5 = most important. Risk Score = Impact Value (1/2/3) × Priority Rank.
+    </p>
+    {% if priorities %}
+    <table class="table ws-table table-bordered" style="max-width:1000px">
+      <thead><tr><th>Impact Area</th><th>Priority Rank</th><th>Weight in Score</th></tr></thead>
+      <tbody>
+      {% for p in priorities %}
+      <tr>
+        <td class="fw-semibold">{{ p.get_area_display_name }}</td>
+        <td class="text-center fw-bold fs-5">{{ p.priority_rank }}</td>
+        <td class="text-muted small">High impact score = 3 × {{ p.priority_rank }} = <strong>{{ p.priority_rank|add:p.priority_rank|add:p.priority_rank }}</strong></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <div class="alert alert-light border small mt-2 mb-0" style="max-width:1000px">
+      Maximum possible Risk Score = 3 (High) × 5 (top rank) = <strong>15</strong>
+    </div>
+    {% else %}
+    <div class="alert alert-warning">Impact area priorities not set.</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ━━━━━ SECTION 3: WS-8 INFORMATION ASSET PROFILES ━━━━━ -->
+<div class="card mb-4">
+  <div class="card-body p-4">
+    <h4>Section 3 — Information Asset Profiles <small class="text-muted fw-normal fs-6">(WS-8)</small></h4>
+    {% for asset in assets %}
+    <div class="mb-4 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
+      <h6 class="fw-bold text-primary">{{ forloop.counter }}. {{ asset.name }}</h6>
+      <table class="table ws-table table-bordered mb-2">
+        <tbody>
+          <tr><td class="fw-semibold" style="width:22%">Description</td><td>{{ asset.description }}</td></tr>
+          <tr><td class="fw-semibold">Rationale</td><td>{{ asset.rationale }}</td></tr>
+          <tr><td class="fw-semibold">Owner</td><td>{{ asset.owner }} ({{ asset.get_owner_type_display }})</td></tr>
+          <tr><td class="fw-semibold">Most Important Req.</td>
+              <td><strong>{{ asset.get_most_important_req_display }}</strong></td></tr>
+        </tbody>
+      </table>
+      <div class="row g-2">
+        <div class="col-md-4">
+          <div class="p-2 rounded small" style="border-left:4px solid #0d6efd;background:#eff6ff">
+            <strong>🔒 Confidentiality:</strong> {{ asset.req_confidentiality }}
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="p-2 rounded small" style="border-left:4px solid #198754;background:#f0fdf4">
+            <strong>✅ Integrity:</strong> {{ asset.req_integrity }}
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="p-2 rounded small" style="border-left:4px solid #fd7e14;background:#fff7ed">
+            <strong>🔄 Availability:</strong> {{ asset.req_availability }}
+          </div>
+        </div>
+      </div>
+      {% if asset.notes %}<div class="text-muted small mt-1">{{ asset.notes }}</div>{% endif %}
+    </div>
+    {% empty %}
+    <div class="alert alert-warning">No information assets defined.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ━━━━━ SECTION 4: WS-9 ASSET CONTAINERS ━━━━━ -->
+<div class="card mb-4">
+  <div class="card-body p-4">
+    <h4>Section 4 — Asset Containers / Risk Environment Map <small class="text-muted fw-normal fs-6">(WS-9)</small></h4>
+    {% for asset in assets %}
+    {% if asset.containers.exists %}
+    <h6 class="fw-bold mt-3 mb-2">{{ asset.name }}</h6>
+    <table class="table ws-table table-bordered mb-3">
+      <thead><tr><th>Type</th><th>Container Name</th><th>Description</th><th>Location / Owner</th><th>Critical</th></tr></thead>
+      <tbody>
+      {% for c in asset.containers.all %}
+      <tr>
+        <td><span class="badge
+          {% if c.container_type == 'internal_technical' %}bg-success
+          {% elif c.container_type == 'external_technical' %}bg-primary
+          {% elif c.container_type == 'physical' %}bg-warning text-dark
+          {% else %}bg-secondary{% endif %}">{{ c.get_container_type_display }}</span></td>
+        <td class="fw-semibold">{{ c.name }}</td>
+        <td>{{ c.description }}</td>
+        <td>{{ c.location|default:"—" }}{% if c.owner %} / {{ c.owner }}{% endif %}</td>
+        <td class="text-center">{% if c.is_critical %}<strong class="text-danger">Yes</strong>{% else %}No{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    {% empty %}
+    <div class="alert alert-warning">No containers defined.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ━━━━━ 5. RISK ASSESSMENT ━━━━━ -->
+<div id="sec-5"></div>
+<div class="card mb-4">
+  <div class="card-body p-4">
+    <h4 class="sec-heading"><span class="sec-num">Section 5 — Threat Scenarios & Risk Analysis <small class="text-muted fw-normal fs-6">(WS-10)</small></h4>
+    <p class="text-muted small mb-3">
+      Threat scenarios identified and scored using the OCTAVE Allegro risk formula.
+      Sorted from highest to lowest risk score.
+    </p>
+
+    <!-- Risk summary counts -->
+    <div class="d-flex gap-3 mb-4">
+      <div class="p-3 rounded text-center" style="background:#fee2e2;min-width:90px">
+        <div class="fw-bold fs-4 text-danger">{{ risk_summary.high }}</div>
+        <div class="small text-danger fw-semibold">HIGH</div>
+      </div>
+      <div class="p-3 rounded text-center" style="background:#fef9c3;min-width:90px">
+        <div class="fw-bold fs-4 text-warning">{{ risk_summary.medium }}</div>
+        <div class="small fw-semibold" style="color:#d97706">MEDIUM</div>
+      </div>
+      <div class="p-3 rounded text-center" style="background:#dcfce7;min-width:90px">
+        <div class="fw-bold fs-4 text-success">{{ risk_summary.low }}</div>
+        <div class="small text-success fw-semibold">LOW</div>
+      </div>
+      <div class="p-3 rounded text-center" style="background:#f1f5f9;min-width:90px">
+        <div class="fw-bold fs-4 text-muted">{{ risk_summary.unscored }}</div>
+        <div class="small text-muted fw-semibold">UNSCORED</div>
+      </div>
+    </div>
+
+    {% if scored_threats %}
+    {% for row in scored_threats %}
+    {% with t=row.threat %}
+    <div class="card mb-3 border" style="border-left:5px solid {% if row.level == 'high' %}#dc2626{% elif row.level == 'medium' %}#d97706{% else %}#16a34a{% endif %}!important">
+      <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <div>
+          <span class="badge risk-{{ row.level }} me-2">{{ row.level|upper }} — {{ row.total }}/15</span>
+          <strong>{{ t.scenario_name }}</strong>
+          <span class="text-muted small ms-2">→ {{ t.asset.name }}</span>
+        </div>
+        <div class="small text-muted">
+          Impact {{ row.impact_label }} ({{ t.impact_value }}) × Rank {{ row.rank }} = <strong>{{ row.total }}</strong>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <table class="table ws-table table-bordered mb-0">
+          <tbody>
+            <tr>
+              <td class="fw-semibold" style="width:18%;background:#fafafa">Area of Concern</td>
+              <td colspan="3">{{ t.area_of_concern }}</td>
+            </tr>
+            <tr>
+              <td class="fw-semibold" style="background:#fafafa">(1) Actor</td>
+              <td>{{ t.actor }}</td>
+              <td class="fw-semibold" style="background:#fafafa;width:18%">(2) Means</td>
+              <td>{{ t.means }}</td>
+            </tr>
+            <tr>
+              <td class="fw-semibold" style="background:#fafafa">(3) Motive</td>
+              <td>{{ t.motive }}</td>
+              <td class="fw-semibold" style="background:#fafafa">(4) Outcome</td>
+              <td>{{ t.outcome }}</td>
+            </tr>
+            <tr>
+              <td class="fw-semibold" style="background:#fafafa">(5) Access Path</td>
+              <td>{{ t.access_path }}</td>
+              <td class="fw-semibold" style="background:#fafafa">(6) Probability</td>
+              <td><span class="badge bg-{{ t.get_probability_color }}">{{ t.probability|title }}</span></td>
+            </tr>
+            <tr>
+              <td class="fw-semibold" style="background:#fafafa">(7) Consequences</td>
+              <td colspan="3">{{ t.consequences }}</td>
+            </tr>
+            {% if t.mitigation_strategy %}
+            <tr>
+              <td class="fw-semibold" style="background:#fafafa">Mitigation</td>
+              <td colspan="3">
+                <span class="badge bg-primary me-1">{{ t.get_mitigation_strategy_display }}</span>
+                <span class="badge bg-secondary me-2">{{ t.get_mitigation_status_display }}</span>
+                {% if t.mitigation_plan %}{{ t.mitigation_plan }}{% endif %}
+              </td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endwith %}
+    {% endfor %}
+    {% else %}
+    <div class="alert alert-warning">No threat scenarios have been scored yet.</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ━━━━━ SECTION 7: COMPLIANCE SCORING (Module 8) ━━━━━ -->
+<div class="card mb-4">
+  <div class="card-body p-4">
+    <h4>Section 6 — Compliance Scoring</h4>
+    <p class="text-muted small mb-3">
+      Compliance is measured as the percentage of identified threats with a defined mitigation strategy.
+    </p>
+    <div class="row align-items-center g-4">
+      <div class="col-md-4 text-center">
+        <div style="position:relative;display:inline-block;width:140px;height:140px;">
+          <svg viewBox="0 0 36 36" style="width:140px;height:140px;transform:rotate(-90deg)">
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" stroke-width="3"/>
+            <circle cx="18" cy="18" r="15.9" fill="none"
+              stroke="{% if compliance_color == 'success' %}#16a34a{% elif compliance_color == 'warning' %}#d97706{% else %}#dc2626{% endif %}"
+              stroke-width="3"
+              stroke-dasharray="{{ compliance_pct }} 100"
+              stroke-linecap="round"/>
+          </svg>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;">
+            <div class="fw-bold" style="font-size:1.6rem;">{{ compliance_pct }}%</div>
+          </div>
+        </div>
+        <div class="mt-2">
+          <span class="badge bg-{{ compliance_color }} fs-6">{{ compliance_label }}</span>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <table class="table ws-table table-bordered mb-0">
+          <tbody>
+            <tr>
+              <td class="fw-semibold" style="width:50%;background:#fafafa">Total Threats Identified</td>
+              <td>{{ total_threats_count }}</td>
+            </tr>
+            <tr>
+              <td class="fw-semibold" style="background:#fafafa">Mitigated / With Strategy</td>
+              <td>{{ mitigated_count }}</td>
+            </tr>
+            <tr>
+              <td class="fw-semibold" style="background:#fafafa">Compliance Score</td>
+              <td><strong>{{ compliance_pct }}%</strong></td>
+            </tr>
+            <tr>
+              <td class="fw-semibold" style="background:#fafafa">Status</td>
+              <td>
+                <span class="badge bg-{{ compliance_color }}">{{ compliance_label }}</span>
+                <div class="small text-muted mt-1">
+                  ≥ 85% = Compliant &nbsp;|&nbsp; 60–84% = Needs Improvement &nbsp;|&nbsp; &lt;60% = Non-Compliant
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Footer -->
+<div class="text-center text-muted small py-2 no-print">
+  Report generated {{ report_date|date:"d F Y H:i" }} &nbsp;·&nbsp;
+  OCTAVE Allegro v1.0 &nbsp;·&nbsp; {{ assessment.organization }}
+</div>
+
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Chart: risk distribution
+document.addEventListener('DOMContentLoaded', function() {
+  const canvas = document.getElementById('riskChart');
+  if (!canvas) return;
+  new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: ['High', 'Medium', 'Low'],
+      datasets: [{
+        data: [{{ risk_summary.high }}, {{ risk_summary.medium }}, {{ risk_summary.low }}],
+        backgroundColor: ['#dc2626','#d97706','#16a34a'],
+        borderWidth: 0,
+      }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } }, cutout: '55%' }
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends 'octave_app/base.html' %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'assessment_list' %}">Assessments</a></li>
+<li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="d-flex align-items-center gap-3 mb-4">
+      <h2 class="fw-bold mb-0">{{ page_title }}</h2>
+    </div>
+    <div class="card">
+      <div class="card-body p-4">
+        <form method="post" novalidate>{% csrf_token %}
+          <p class="sec-label">Assessment Details</p>
+          <div class="row g-3 mb-3">
+            <div class="col-12"><label class="form-label fw-semibold">Title *</label>{{ form.title }}{% if form.title.errors %}<div class="text-danger small">{{ form.title.errors.0 }}</div>{% endif %}</div>
+            <div class="col-md-8"><label class="form-label fw-semibold">Organisation *</label>{{ form.organization }}</div>
+            <div class="col-md-4"><label class="form-label fw-semibold">Status</label>{{ form.status }}</div>
+            <div class="col-12"><label class="form-label fw-semibold">Scope *</label>{{ form.scope }}<div class="form-text">Define systems, processes, and boundaries covered.</div></div>
+          </div>
+          <p class="sec-label mt-3">Assessor</p>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6"><label class="form-label fw-semibold">Name *</label>{{ form.assessor_name }}</div>
+            <div class="col-md-6"><label class="form-label fw-semibold">Email</label>{{ form.assessor_email }}</div>
+          </div>
+          <p class="sec-label mt-3">Timeline</p>
+          <div class="row g-3 mb-4">
+            <div class="col-md-6"><label class="form-label fw-semibold">Start Date</label>{{ form.start_date }}</div>
+            <div class="col-md-6"><label class="form-label fw-semibold">End Date</label>{{ form.end_date }}</div>
+            <div class="col-12"><label class="form-label fw-semibold">Notes</label>{{ form.notes }}</div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i>{{ btn }}</button>
+            <a href="{% url 'assessment_list' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

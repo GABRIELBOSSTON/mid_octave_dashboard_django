@@ -1,0 +1,127 @@
+{% extends 'octave_app/base.html' %}
+{% block title %}Step 1 — {{ assessment.title }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'assessment_detail' assessment.pk %}">{{ assessment.title }}</a></li>
+<li class="breadcrumb-item active">Step 1 — Risk Measurement Criteria</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h2 class="fw-bold mb-1">Step 1 — Establish Risk Measurement Criteria</h2>
+    <p class="text-muted mb-0 small">
+      <span class="ws-badge">WS-1 to WS-6</span> Define Low/Moderate/High criteria per impact area &nbsp;|&nbsp;
+      <span class="ws-badge">WS-7</span> Rank impact areas by importance
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'step1_criteria_add' assessment.pk %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i> Add Criterion
+    </a>
+    <a href="{% url 'step1_prioritize' assessment.pk %}" class="btn btn-outline-success btn-sm">
+      <i class="bi bi-list-ol me-1"></i> Set Priorities (WS-7)
+    </a>
+  </div>
+</div>
+
+<div class="alert alert-light border small mb-4">
+  <strong><i class="bi bi-info-circle me-1"></i>How to use:</strong>
+  For each impact area (Reputation, Financial, Productivity, Safety, Legal), define what
+  <strong>Low</strong>, <strong>Moderate</strong>, and <strong>High</strong> impact means for your organisation.
+  Then use <strong>WS-7</strong> to rank which impact areas matter most (rank 5 = most important).
+  These criteria will be used to score every threat in Step 7.
+</div>
+
+<div class="row g-4">
+  <!-- WS-1 to WS-6: Criteria table -->
+  <div class="col-lg-8">
+    {% if grouped %}
+      {% for area_name, crits in grouped.items %}
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="fw-bold mb-0">{{ area_name }}</h6>
+          <a href="{% url 'step1_criteria_add' assessment.pk %}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-plus"></i> Add Row
+          </a>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm align-top mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3" style="width:18%">Criterion</th>
+                  <th style="width:27%"><span class="text-success fw-bold">Low</span></th>
+                  <th style="width:27%"><span class="text-warning fw-bold">Moderate</span></th>
+                  <th style="width:27%"><span class="text-danger fw-bold">High</span></th>
+                  <th style="width:60px"></th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for c in crits %}
+              <tr>
+                <td class="ps-3 fw-semibold small align-middle">{{ c.criterion }}</td>
+                <td class="small" style="border-left:3px solid #16a34a">{{ c.low_criteria }}</td>
+                <td class="small" style="border-left:3px solid #d97706">{{ c.mod_criteria }}</td>
+                <td class="small" style="border-left:3px solid #dc2626">{{ c.high_criteria }}</td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <a href="{% url 'step1_criteria_edit' assessment.pk c.pk %}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                    <a href="{% url 'step1_criteria_delete' assessment.pk c.pk %}" class="btn btn-outline-danger"><i class="bi bi-trash"></i></a>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="card">
+      <div class="card-body text-center py-5 text-muted">
+        <i class="bi bi-table d-block fs-1 mb-3"></i>
+        <p>No impact criteria defined yet.</p>
+        <a href="{% url 'step1_criteria_add' assessment.pk %}" class="btn btn-primary">
+          Add First Criterion
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- WS-7: Priority sidebar -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0">WS-7 — Impact Area Priorities</h6>
+        <a href="{% url 'step1_prioritize' assessment.pk %}" class="btn btn-sm btn-outline-success">Edit</a>
+      </div>
+      <div class="card-body">
+        {% if priorities %}
+        <div class="small text-muted mb-3">Rank 5 = most important to your organisation</div>
+        {% for p in priorities %}
+        <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded"
+             style="background:#f8fafc">
+          <span class="small fw-semibold">{{ p.get_area_display_name }}</span>
+          <span class="badge fs-6" style="background:var(--navy2)">{{ p.priority_rank }}</span>
+        </div>
+        {% endfor %}
+        <div class="alert alert-light border small mt-3 mb-0">
+          <i class="bi bi-calculator me-1"></i>
+          Risk Score = Impact Value (1/2/3) × Priority Rank (1–5)
+          <br>Max score = 3 × 5 = <strong>15</strong>
+        </div>
+        {% else %}
+        <div class="text-center py-3 text-muted small">
+          <i class="bi bi-list-ol d-block fs-2 mb-1"></i>
+          Priorities not set yet.
+          <a href="{% url 'step1_prioritize' assessment.pk %}">Set WS-7 →</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends 'octave_app/base.html' %}
+{% block title %}Assign Auditee — {{ assessment.title }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'assessment_detail' assessment.pk %}">{{ assessment.title }}</a></li>
+<li class="breadcrumb-item active">Assign Auditee</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header d-flex align-items-center gap-3">
+        <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#0d1f3c,#2563eb);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="bi bi-person-check-fill text-white"></i>
+        </div>
+        <div>
+          <h5 class="mb-0 fw-bold">Assign Auditee</h5>
+          <div class="text-muted small">{{ assessment.title }} — {{ assessment.organization }}</div>
+        </div>
+      </div>
+      <div class="card-body p-4">
+
+        <div class="alert alert-info py-2 small mb-4">
+          <i class="bi bi-info-circle me-1"></i>
+          As Admin, you assign the <strong>Auditee</strong> (organisation staff) who will be able to view this assessment.
+          Only users with the <span class="badge bg-secondary">Auditee</span> role appear in the list below.
+        </div>
+
+        {% if assessment.assigned_auditee %}
+        <div class="alert alert-success py-2 small mb-4">
+          <i class="bi bi-person-check me-1"></i>
+          Currently assigned to: <strong>{{ assessment.assigned_auditee.get_full_name|default:assessment.assigned_auditee.username }}</strong>
+          ({{ assessment.assigned_auditee.email }})
+        </div>
+        {% endif %}
+
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-4">
+            <label class="form-label fw-semibold">{{ form.assigned_auditee.label }}</label>
+            {{ form.assigned_auditee }}
+            <div class="form-text">Select "— Unassigned —" to remove the current assignment.</div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-person-check me-1"></i>Save Assignment
+            </button>
+            <a href="{% url 'assessment_detail' assessment.pk %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header"><h6 class="fw-bold mb-0"><i class="bi bi-people me-2"></i>No Auditees in the list?</h6></div>
+      <div class="card-body small text-muted">
+        If the dropdown is empty, it means no users have been assigned the <span class="badge bg-secondary">Auditee</span> role yet.
+        Go to <a href="{% url 'user_list' %}">Manage Users</a> and promote a user's role to Auditee first.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

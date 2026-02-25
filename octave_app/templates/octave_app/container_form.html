@@ -1,0 +1,76 @@
+{% extends 'octave_app/base.html' %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'assessment_detail' asset.assessment.pk %}">{{ asset.assessment.title }}</a></li>
+<li class="breadcrumb-item"><a href="{% url 'step3_containers' asset.pk %}">Step 3 Containers</a></li>
+<li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="d-flex align-items-center gap-3 mb-4">
+      <h2 class="fw-bold mb-0">{{ page_title }}</h2>
+      <span class="ws-badge">WS-9</span>
+    </div>
+
+    <div class="alert alert-light border small mb-4">
+      <strong>Container Types:</strong>
+      <ul class="mb-0 mt-1">
+        <li><strong>Internal Technical</strong> — servers, databases, applications inside the organisation</li>
+        <li><strong>External Technical</strong> — cloud services, third-party systems, vendor portals</li>
+        <li><strong>Physical</strong> — paper files, offices, storage rooms, portable devices</li>
+        <li><strong>People</strong> — staff, contractors, or anyone who carries this information as knowledge</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-4">
+        <form method="post" novalidate>{% csrf_token %}
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Container Type *</label>
+              {{ form.container_type }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Container Name *</label>
+              {{ form.name }}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Description *</label>
+              {{ form.description }}
+              <div class="form-text">How is "{{ asset.name }}" stored, transported, or processed here?</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Location</label>
+              {{ form.location }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Container Owner</label>
+              {{ form.owner }}
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                {{ form.is_critical }}
+                <label class="form-check-label fw-semibold" for="{{ form.is_critical.id_for_label }}">
+                  Mark as Critical Container
+                </label>
+                <div class="form-text">Critical containers will be highlighted in the Risk Environment Map.</div>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Notes</label>
+              {{ form.notes }}
+            </div>
+          </div>
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i>{{ btn }}</button>
+            <a href="{% url 'step3_containers' asset.pk %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

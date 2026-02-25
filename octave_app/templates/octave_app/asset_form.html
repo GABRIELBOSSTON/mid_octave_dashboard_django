@@ -1,0 +1,68 @@
+{% extends 'octave_app/base.html' %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'assessment_detail' assessment.pk %}">{{ assessment.title }}</a></li>
+<li class="breadcrumb-item active">{{ page_title }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="d-flex align-items-center gap-3 mb-4">
+      <h2 class="fw-bold mb-0">{{ page_title }}</h2>
+      <span class="ws-badge">WS-8</span>
+    </div>
+    <div class="alert alert-light border small mb-4">
+      <strong>Step 2 — Information Asset Profile:</strong>
+      Document this asset's identity, ownership, and CIA security requirements.
+      The "Most Important Requirement" will drive consequence analysis in later steps.
+    </div>
+    <div class="card">
+      <div class="card-body p-4">
+        <form method="post" novalidate>{% csrf_token %}
+          <p class="sec-label">Asset Identity</p>
+          <div class="row g-3 mb-3">
+            <div class="col-12"><label class="form-label fw-semibold">Asset Name *</label>{{ form.name }}</div>
+            <div class="col-12"><label class="form-label fw-semibold">Description *</label>{{ form.description }}</div>
+            <div class="col-12"><label class="form-label fw-semibold">Rationale *</label>{{ form.rationale }}<div class="form-text">Why is this asset important? What would be lost if it were compromised?</div></div>
+          </div>
+          <p class="sec-label mt-3">Ownership</p>
+          <div class="row g-3 mb-3">
+            <div class="col-md-8"><label class="form-label fw-semibold">Owner *</label>{{ form.owner }}</div>
+            <div class="col-md-4"><label class="form-label fw-semibold">Owner Type</label>{{ form.owner_type }}</div>
+          </div>
+          <p class="sec-label mt-3">Security Requirements — CIA Triad</p>
+          <div class="row g-3 mb-3">
+            <div class="col-12">
+              <div class="p-3 rounded mb-3" style="border-left:4px solid #0d6efd;background:#eff6ff">
+                <label class="form-label fw-semibold">🔒 Confidentiality Requirement *</label>
+                {{ form.req_confidentiality }}
+              </div>
+              <div class="p-3 rounded mb-3" style="border-left:4px solid #198754;background:#f0fdf4">
+                <label class="form-label fw-semibold">✅ Integrity Requirement *</label>
+                {{ form.req_integrity }}
+              </div>
+              <div class="p-3 rounded" style="border-left:4px solid #fd7e14;background:#fff7ed">
+                <label class="form-label fw-semibold">🔄 Availability Requirement *</label>
+                {{ form.req_availability }}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Most Important Security Requirement *</label>
+              {{ form.most_important_req }}
+              <div class="form-text">Which single CIA property is MOST critical for this asset?</div>
+            </div>
+          </div>
+          <p class="sec-label mt-3">Notes</p>
+          <div class="mb-4">{{ form.notes }}</div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i>{{ btn }}</button>
+            <a href="{% url 'assessment_detail' assessment.pk %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
