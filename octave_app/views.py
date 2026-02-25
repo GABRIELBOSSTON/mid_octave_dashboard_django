@@ -81,9 +81,9 @@ def register_view(request):
             'phone': form.cleaned_data.get('phone') or '',
             }
         )
-        login(request, user)
-        messages.success(request, f'Account created! Welcome, {user.first_name}. Your account is pending role assignment by an Admin.')
-        return redirect('dashboard')
+        # login(request, user)  # Removed as per request to redirect to login instead
+        messages.success(request, f'Account created successfully! Welcome, {user.first_name}. Please log in to continue.')
+        return redirect('login')
     return render(request, 'octave_app/auth/register.html', {'form': form})
 
 
