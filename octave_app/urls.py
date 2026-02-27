@@ -1,6 +1,8 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     # ── Auth / Module 1 ──────────────────────────────────────
@@ -90,3 +92,6 @@ urlpatterns = [
     path('audit/control/<int:control_pk>/evidence/upload/', views.audit_evidence_upload, name='audit_evidence_upload'),
     path('audit/evidence/<int:evidence_pk>/delete/', views.audit_evidence_delete, name='audit_evidence_delete'),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
