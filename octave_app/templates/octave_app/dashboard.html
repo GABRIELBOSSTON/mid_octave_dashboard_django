@@ -383,7 +383,7 @@
 </div>
 
 <div class="row g-4">
-  <div class="col-lg-8">
+  <div class="col-lg-12">
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h6 class="fw-bold mb-0"><i class="bi bi-clipboard2-data me-2"></i>Assessments Assigned to You</h6>
@@ -433,29 +433,149 @@
     </div>
   </div>
 
-  <div class="col-lg-4">
-    {% if total_assessments > 0 %}
-    <div class="card mb-3">
-      <div class="card-header"><h6 class="fw-bold mb-0">Your Risk Overview</h6></div>
-      <div class="card-body">
-        <div class="d-flex justify-content-around text-center mb-3">
-          <div><div class="fw-bold fs-4 text-danger">{{ risk_counts.high }}</div><div class="small text-muted">High</div></div>
-          <div><div class="fw-bold fs-4 text-warning">{{ risk_counts.medium }}</div><div class="small text-muted">Medium</div></div>
-          <div><div class="fw-bold fs-4 text-success">{{ risk_counts.low }}</div><div class="small text-muted">Low</div></div>
+  <!-- Audit Assessments (ISO 27001) -->
+  <div class="col-lg-8">
+    <div class="card mt-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0">
+          <i class="bi bi-clipboard2-check me-2 text-success"></i>
+          Audit Assessments (ISO 27001)
+        </h6>
+        <a href="{% url 'audit_list' %}" 
+           class="btn btn-sm btn-outline-success">
+           View All
+        </a>
+      </div>
+  
+      <div class="card-body p-0">
+        {% if assigned_audits %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">Title</th>
+                <th>Auditor</th>
+                <th>Status</th>
+                <th>Compliance</th>
+                <th>Controls</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for audit in assigned_audits %}
+              {% with sc=audit.get_compliance_score %}
+              <tr>
+                <td class="ps-3 fw-semibold small">
+                  {{ audit.title }}
+                </td>
+  
+                <td class="small text-muted">
+                  {{ audit.owner.get_full_name|default:audit.owner.username|default:"—" }}
+                </td>
+  
+                <td>
+                  {% if audit.status == 'completed' %}
+                    <span class="badge bg-success">Completed</span>
+                  {% elif audit.status == 'in_progress' %}
+                    <span class="badge bg-warning text-dark">In Progress</span>
+                  {% else %}
+                    <span class="badge bg-secondary">Draft</span>
+                  {% endif %}
+                </td>
+  
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="progress" style="width:50px;height:6px;">
+                      <div class="progress-bar bg-{{ sc.2 }}" 
+                           style="width:{{ sc.0 }}%">
+                      </div>
+                    </div>
+                    <span class="small fw-bold">{{ sc.0 }}%</span>
+                  </div>
+                  <div style="font-size:.68rem;color:#64748b;">
+                    {{ sc.1 }}
+                  </div>
+                </td>
+  
+                <td>
+                  <span class="badge bg-light text-dark">
+                    {{ audit.controls.count }}
+                  </span>
+                </td>
+  
+                <td>
+                  <a href="{% url 'audit_detail' audit.pk %}" 
+                     class="btn btn-sm btn-outline-success">
+                     Open
+                  </a>
+                </td>
+              </tr>
+              {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-        {% if risk_counts.high > 0 %}
-        <div class="alert alert-danger py-2 small mb-0"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ risk_counts.high }} high-risk issue(s). Ask your auditor for the mitigation plan.</div>
-        {% elif risk_counts.medium > 0 %}
-        <div class="alert alert-warning py-2 small mb-0"><i class="bi bi-exclamation-circle me-1"></i>{{ risk_counts.medium }} medium-risk item(s). Review with your auditor.</div>
+  
         {% else %}
-        <div class="alert alert-success py-2 small mb-0"><i class="bi bi-shield-check me-1"></i>No high or medium risks identified.</div>
+        <div class="text-center py-4 text-muted">
+          <i class="bi bi-clipboard2-x d-block fs-1 mb-2"></i>
+          No audit assessments assigned yet.
+        </div>
         {% endif %}
       </div>
     </div>
-    {% endif %}
-    
   </div>
-</div>
+
+  <div class="col-lg-4 d-flex">
+    {% if total_assessments > 0 %}
+    <div class="card w-100 h-100">
+  
+      <div class="card-header">
+        <h6 class="fw-bold mb-0">Your Risk Overview</h6>
+      </div>
+  
+      <div class="card-body d-flex flex-column">
+  
+        <!-- angka risk -->
+        <div class="d-flex justify-content-around text-center mb-4">
+          <div>
+            <div class="fw-bold fs-3 text-danger">{{ risk_counts.high }}</div>
+            <div class="small text-muted">High</div>
+          </div>
+          <div>
+            <div class="fw-bold fs-3 text-warning">{{ risk_counts.medium }}</div>
+            <div class="small text-muted">Medium</div>
+          </div>
+          <div>
+            <div class="fw-bold fs-3 text-success">{{ risk_counts.low }}</div>
+            <div class="small text-muted">Low</div>
+          </div>
+        </div>
+  
+        <!-- spacer biar alert turun ke bawah -->
+        <div class="mt-auto">
+          {% if risk_counts.high > 0 %}
+          <div class="alert alert-danger py-2 small mb-0">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            {{ risk_counts.high }} high-risk issue(s). Ask your auditor for the mitigation plan.
+          </div>
+          {% elif risk_counts.medium > 0 %}
+          <div class="alert alert-warning py-2 small mb-0">
+            <i class="bi bi-exclamation-circle me-1"></i>
+            {{ risk_counts.medium }} medium-risk item(s). Review with your auditor.
+          </div>
+          {% else %}
+          <div class="alert alert-success py-2 small mb-0">
+            <i class="bi bi-shield-check me-1"></i>
+            No high or medium risks identified.
+          </div>
+          {% endif %}
+        </div>
+  
+      </div>
+    </div>
+    {% endif %}
+  </div>
 {% endif %}
 
 {% endblock %}
