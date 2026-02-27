@@ -1,4 +1,5 @@
 from django.urls import path
+from django.contrib.auth import views as auth_views
 from . import views
 
 urlpatterns = [
@@ -6,16 +7,45 @@ urlpatterns = [
     path('login/',                    views.login_view,   name='login'),
     path('register/',                 views.register_view,name='register'),
     path('logout/',                   views.logout_view,  name='logout'),
+    
+    # ── Lupa Password (Full Fix with Custom Email Templates) ──
+    path('password-reset/', 
+         auth_views.PasswordResetView.as_view(
+             template_name='octave_app/auth/password_reset_form.html',
+             email_template_name='octave_app/auth/password_reset_email.html',
+             subject_template_name='octave_app/auth/password_reset_subject.txt'
+         ), 
+         name='password_reset'),
+         
+    path('password-reset/done/', 
+         auth_views.PasswordResetDoneView.as_view(
+             template_name='octave_app/auth/password_reset_done.html'
+         ), 
+         name='password_reset_done'),
+         
+    path('password-reset-confirm/<uidb64>/<token>/', 
+         auth_views.PasswordResetConfirmView.as_view(
+             template_name='octave_app/auth/password_reset_confirm.html'
+         ), 
+         name='password_reset_confirm'),
+         
+    path('password-reset-complete/', 
+         auth_views.PasswordResetCompleteView.as_view(
+             template_name='octave_app/auth/password_reset_complete.html'
+         ), 
+         name='password_reset_complete'),
+
+    # ── Profile & User Management ─────────────────────────────
     path('profile/',                  views.profile_view, name='profile'),
     path('users/',                    views.user_list,    name='user_list'),
     path('users/<int:user_pk>/edit/', views.user_edit,    name='user_edit'),
     path('users/<int:user_pk>/delete/', views.user_delete, name='user_delete'),
 
-    # Module Selection (Auditor)
+    # ── Module Selection (Auditor) ────────────────────────────
     path('select-module/',            views.module_selection, name='module_selection'),
 
-    # Dashboard & Risk Assessment
-    path('',                                     views.dashboard,          name='dashboard'),
+    # ── Dashboard & Risk Assessment (OCTAVE Allegro) ──────────
+    path('',                                      views.dashboard,          name='dashboard'),
     path('assessments/',                          views.assessment_list,    name='assessment_list'),
     path('assessments/new/',                      views.assessment_create,  name='assessment_create'),
     path('assessments/<int:pk>/',                 views.assessment_detail,  name='assessment_detail'),
@@ -54,10 +84,9 @@ urlpatterns = [
     path('audit/<int:pk>/',                       views.audit_detail,           name='audit_detail'),
     path('audit/<int:pk>/edit/',                  views.audit_update,           name='audit_update'),
     path('audit/<int:pk>/delete/',                views.audit_delete,           name='audit_delete'),
-    path('audit/<int:pk>/assign-auditee/',                views.audit_assign_auditee,   name='audit_assign_auditee'),
+    path('audit/<int:pk>/assign-auditee/',        views.audit_assign_auditee,   name='audit_assign_auditee'),
     path('audit/<int:pk>/report/',                views.audit_report,           name='audit_report'),
     path('audit/control/<int:control_pk>/',       views.audit_control_review,   name='audit_control_review'),
     path('audit/control/<int:control_pk>/evidence/upload/', views.audit_evidence_upload, name='audit_evidence_upload'),
     path('audit/evidence/<int:evidence_pk>/delete/', views.audit_evidence_delete, name='audit_evidence_delete'),
 ]
-
